@@ -16,17 +16,32 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Application
+
+**Facebook ID Manager** — a full-featured tool for tracking, organizing, and managing thousands of Facebook UIDs (optionally with passwords). Features:
+
+- Per-user isolated data (Replit Auth)
+- Bulk import (paste UIDs/passwords, one per line, `uid` or `uid|password` format)
+- Deduplication on import
+- Pin/unpin IDs (yellow accent, sorted to top)
+- Visited/unvisited tracking (clicking the UID link marks it visited; visited IDs are visually dimmed)
+- Copy or download: pinned, unchecked, or all IDs
+- Admin panel (accessible to users with "admin" in email or matching `ADMIN_USER_ID` env var)
+- Dark navy/slate theme with electric blue/cyan accents
+
 ## Structure
 
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
+│   ├── api-server/         # Express API server
+│   └── fb-id-manager/      # React + Vite frontend (dark theme, Wouter routing)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
+│   ├── db/                 # Drizzle ORM schema + DB connection
+│   └── replit-auth-web/    # Replit Auth hook + provider for React frontend
 ├── scripts/                # Utility scripts (single workspace package)
 │   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
 ├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)

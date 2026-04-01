@@ -8,3 +8,123 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
+export interface MobileTokenExchangeRequest {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  code_verifier: string;
+  /** @minLength 1 */
+  redirect_uri: string;
+  /** @minLength 1 */
+  state: string;
+  /** @minLength 1 */
+  nonce?: string;
+}
+
+export interface MobileTokenExchangeSuccess {
+  token: string;
+}
+
+export const LogoutSuccessValue = {
+  success: true,
+} as const;
+export type LogoutSuccess = typeof LogoutSuccessValue;
+
+export interface ErrorEnvelope {
+  error: string;
+}
+
+export interface FacebookIdItem {
+  id: number;
+  uid: string;
+  /** @nullable */
+  password: string | null;
+  pinned: boolean;
+  visited: boolean;
+  createdAt: string;
+}
+
+export interface FacebookIdList {
+  items: FacebookIdItem[];
+}
+
+export interface BulkImportBody {
+  /** Raw text with one UID or uid|password per line */
+  rawText: string;
+}
+
+export interface BulkImportResult {
+  imported: number;
+  duplicatesSkipped: number;
+  total: number;
+}
+
+export interface UpdateFacebookIdBody {
+  pinned?: boolean;
+  visited?: boolean;
+}
+
+export interface DeleteResult {
+  deleted: number;
+}
+
+export interface FacebookIdStats {
+  total: number;
+  pinned: number;
+  visited: number;
+  unvisited: number;
+}
+
+export interface AdminUserItem {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  totalIds: number;
+  pinnedIds: number;
+  visitedIds: number;
+}
+
+export interface AdminUserList {
+  users: AdminUserItem[];
+  totalUsers: number;
+  totalIds: number;
+}
+
+/**
+ * Opaque session token — `Bearer <sid>`.
+ */
+export type AuthorizationSessionHeaderParameter = string;
+
+export type BeginBrowserLoginParams = {
+  /**
+   * Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+   */
+  returnTo?: string;
+};
+
+export type HandleBrowserLoginCallbackParams = {
+  code?: string;
+  state?: string;
+  iss?: string;
+};

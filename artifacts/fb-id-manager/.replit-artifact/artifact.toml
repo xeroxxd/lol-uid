@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Facebook ID Manager"
+version = "1.0.0"
+id = "artifacts/fb-id-manager"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24017
+
+[services.development]
+run = "pnpm --filter @workspace/fb-id-manager run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fb-id-manager", "run", "build" ]
+publicDir = "artifacts/fb-id-manager/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24017"
+BASE_PATH = "/"

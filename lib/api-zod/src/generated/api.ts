@@ -14,3 +14,262 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Get the currently authenticated user
+ */
+export const GetCurrentAuthUserHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const GetCurrentAuthUserResponse = zod.object({
+  user: zod.union([
+    zod.object({
+      id: zod.string(),
+      email: zod.string().email().nullable(),
+      firstName: zod.string().nullable(),
+      lastName: zod.string().nullable(),
+      profileImageUrl: zod.string().nullable(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Start the browser OIDC login flow
+ */
+export const BeginBrowserLoginQueryParams = zod.object({
+  returnTo: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Relative path to redirect to after login (must start with `\/`). Defaults to `\/`.",
+    ),
+});
+
+/**
+ * @summary Complete the browser OIDC login flow
+ */
+export const HandleBrowserLoginCallbackQueryParams = zod.object({
+  code: zod.coerce.string().optional(),
+  state: zod.coerce.string().optional(),
+  iss: zod.coerce.string().url().optional(),
+});
+
+/**
+ * @summary Clear the session and begin OIDC logout
+ */
+export const LogoutBrowserSessionHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+/**
+ * @summary Exchange a mobile OIDC code for a session token
+ */
+
+export const ExchangeMobileAuthorizationCodeBody = zod.object({
+  code: zod.string().min(1),
+  code_verifier: zod.string().min(1),
+  redirect_uri: zod.string().url().min(1),
+  state: zod.string().min(1),
+  nonce: zod.string().min(1).optional(),
+});
+
+export const ExchangeMobileAuthorizationCodeResponse = zod.object({
+  token: zod.string(),
+});
+
+/**
+ * @summary Delete a mobile session token
+ */
+export const LogoutMobileSessionHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const LogoutMobileSessionResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary List all Facebook IDs for the current user
+ */
+export const ListFacebookIdsHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const ListFacebookIdsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      uid: zod.string(),
+      password: zod.string().nullable(),
+      pinned: zod.boolean(),
+      visited: zod.boolean(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Bulk import Facebook IDs (with deduplication)
+ */
+export const BulkImportFacebookIdsHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const BulkImportFacebookIdsBody = zod.object({
+  rawText: zod
+    .string()
+    .describe("Raw text with one UID or uid|password per line"),
+});
+
+export const BulkImportFacebookIdsResponse = zod.object({
+  imported: zod.number(),
+  duplicatesSkipped: zod.number(),
+  total: zod.number(),
+});
+
+/**
+ * @summary Delete all Facebook IDs for the current user
+ */
+export const ClearAllFacebookIdsHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const ClearAllFacebookIdsResponse = zod.object({
+  deleted: zod.number(),
+});
+
+/**
+ * @summary Delete a single Facebook ID entry
+ */
+export const DeleteFacebookIdParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteFacebookIdHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const DeleteFacebookIdResponse = zod.object({
+  deleted: zod.number(),
+});
+
+/**
+ * @summary Update pin or visited state of a Facebook ID
+ */
+export const UpdateFacebookIdParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateFacebookIdHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const UpdateFacebookIdBody = zod.object({
+  pinned: zod.boolean().optional(),
+  visited: zod.boolean().optional(),
+});
+
+export const UpdateFacebookIdResponse = zod.object({
+  id: zod.number(),
+  uid: zod.string(),
+  password: zod.string().nullable(),
+  pinned: zod.boolean(),
+  visited: zod.boolean(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Get stats for the current user's Facebook IDs
+ */
+export const GetFacebookIdStatsHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const GetFacebookIdStatsResponse = zod.object({
+  total: zod.number(),
+  pinned: zod.number(),
+  visited: zod.number(),
+  unvisited: zod.number(),
+});
+
+/**
+ * @summary Admin - list all users with their Facebook ID counts
+ */
+export const AdminListUsersHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const AdminListUsersResponse = zod.object({
+  users: zod.array(
+    zod.object({
+      id: zod.string(),
+      email: zod.string().nullable(),
+      firstName: zod.string().nullable(),
+      lastName: zod.string().nullable(),
+      totalIds: zod.number(),
+      pinnedIds: zod.number(),
+      visitedIds: zod.number(),
+    }),
+  ),
+  totalUsers: zod.number(),
+  totalIds: zod.number(),
+});
+
+/**
+ * @summary Admin - get all Facebook IDs for a specific user
+ */
+export const AdminGetUserIdsParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AdminGetUserIdsHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const AdminGetUserIdsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      uid: zod.string(),
+      password: zod.string().nullable(),
+      pinned: zod.boolean(),
+      visited: zod.boolean(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
