@@ -1,12 +1,17 @@
 import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
-import { Database } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Database, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function Login() {
   const { isAuthenticated, isLoading, login } = useAuth();
   const [, setLocation] = useLocation();
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -14,12 +19,25 @@ export default function Login() {
     }
   }, [isAuthenticated, setLocation]);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) return;
+    setError("");
+    setSubmitting(true);
+    const result = await login(password);
+    setSubmitting(false);
+    if (!result.ok) {
+      setError(result.error ?? "Invalid password");
+      setPassword("");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark text-foreground">
         <div className="animate-pulse flex flex-col items-center gap-4">
           <Database className="h-12 w-12 text-primary" />
-          <p className="text-muted-foreground font-medium">Loading command center...</p>
+          <p className="text-muted-foreground font-medium">Loading...</p>
         </div>
       </div>
     );
@@ -37,19 +55,42 @@ export default function Login() {
             High-density account tracking and management dashboard.
           </p>
         </div>
-        
-        <div className="pt-4 border-t border-border">
-          <Button 
-            size="lg" 
+
+        <form onSubmit={handleSubmit} className="pt-4 border-t border-border space-y-3">
+          <div className="relative">
+            <Input
+              type={showPass ? "text" : "password"}
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pr-10 text-center font-mono text-base bg-background border-border focus-visible:ring-primary"
+              autoFocus
+              disabled={submitting}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPass((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+            >
+              {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+
+          {error && (
+            <p className="text-sm text-destructive font-medium">{error}</p>
+          )}
+
+          <Button
+            type="submit"
+            size="lg"
             className="w-full text-base font-semibold"
-            onClick={() => login()}
+            disabled={!password.trim() || submitting}
           >
-            Authenticate
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitting ? "Checking..." : "Enter"}
           </Button>
-          <p className="text-xs text-muted-foreground mt-4">
-            Secure access required.
-          </p>
-        </div>
+        </form>
       </div>
     </div>
   );
