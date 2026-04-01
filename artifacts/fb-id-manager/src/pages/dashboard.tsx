@@ -52,7 +52,7 @@ export default function Dashboard() {
       onError: (err) => {
         toast({
           title: "Import Failed",
-          description: err.error || "An error occurred",
+          description: err.data?.error ?? "An error occurred",
           variant: "destructive"
         });
       }
@@ -245,7 +245,7 @@ export default function Dashboard() {
             size="sm" 
             onClick={() => {
               if(confirm("Are you sure you want to delete ALL data? This cannot be undone.")) {
-                clearAllMutation.mutate({});
+                clearAllMutation.mutate();
               }
             }}
             disabled={clearAllMutation.isPending || !idsData?.items?.length}

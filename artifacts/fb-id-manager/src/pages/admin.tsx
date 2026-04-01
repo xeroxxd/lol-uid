@@ -10,7 +10,8 @@ import {
 import {
   useAdminListUsers,
   useAdminGetUserIds,
-  getAdminListUsersQueryKey
+  getAdminListUsersQueryKey,
+  getAdminGetUserIdsQueryKey
 } from "@workspace/api-client-react";
 
 export default function Admin() {
@@ -145,6 +146,7 @@ function AdminUserDetail({ userId }: { userId: string }) {
   const { data, isLoading, isError } = useAdminGetUserIds(userId, {
     query: {
       enabled: !!userId,
+      queryKey: getAdminGetUserIdsQueryKey(userId),
     }
   });
 
