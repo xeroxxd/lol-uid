@@ -18,7 +18,7 @@ export default function Admin() {
   const [, setLocation] = useLocation();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const isAdmin = user?.email?.includes("admin") || user?.id === "admin";
+  const isAdmin = user?.isAdmin === true;
 
   useEffect(() => {
     if (!authLoading && (!isAuthenticated || !isAdmin)) {
@@ -41,7 +41,9 @@ export default function Admin() {
         <div className="flex flex-col items-center justify-center p-12 text-center border border-destructive/20 bg-destructive/5 rounded-xl text-destructive mt-8">
           <ShieldAlert className="h-12 w-12 mb-4" />
           <h2 className="text-xl font-bold mb-2">Access Denied</h2>
-          <p className="opacity-80">{(error as any)?.error || "You do not have permission to view this page."}</p>
+          <p className="opacity-80">
+            {error instanceof Error ? error.message : "You do not have permission to view this page."}
+          </p>
         </div>
       </Layout>
     );

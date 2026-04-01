@@ -22,9 +22,8 @@ function requireAuth(req: Request, res: Response): boolean {
 function isAdmin(req: Request): boolean {
   if (!req.isAuthenticated()) return false;
   const adminUserId = process.env.ADMIN_USER_ID;
-  if (adminUserId && req.user.id === adminUserId) return true;
-  const email = req.user.email || "";
-  return email.toLowerCase().includes("admin");
+  if (!adminUserId) return false;
+  return req.user.id === adminUserId;
 }
 
 router.get("/facebook-ids/stats", async (req: Request, res: Response) => {

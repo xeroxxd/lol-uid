@@ -7,7 +7,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
 
-  const isAdmin = user?.email?.includes("admin") || user?.id === "admin";
+  const isAdmin = user?.isAdmin === true;
 
   return (
     <div className="min-h-screen bg-background flex flex-col text-foreground dark">

@@ -83,9 +83,12 @@ async function upsertUser(claims: Record<string, unknown>) {
 }
 
 router.get("/auth/user", (req: Request, res: Response) => {
+  const authenticated = req.isAuthenticated();
+  const adminUserId = process.env.ADMIN_USER_ID;
+  const isAdmin = authenticated && !!adminUserId && req.user.id === adminUserId;
   res.json(
     GetCurrentAuthUserResponse.parse({
-      user: req.isAuthenticated() ? req.user : null,
+      user: authenticated ? { ...req.user, isAdmin } : null,
     }),
   );
 });
