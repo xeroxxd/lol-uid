@@ -194,6 +194,8 @@ export const UpdateFacebookIdHeader = zod.object({
 export const UpdateFacebookIdBody = zod.object({
   pinned: zod.boolean().optional(),
   visited: zod.boolean().optional(),
+  note: zod.string().nullable().optional(),
+  tag: zod.string().nullable().optional(),
 });
 
 export const UpdateFacebookIdResponse = zod.object({
@@ -202,6 +204,8 @@ export const UpdateFacebookIdResponse = zod.object({
   password: zod.string().nullable(),
   pinned: zod.boolean(),
   visited: zod.boolean(),
+  note: zod.string().nullable(),
+  tag: zod.string().nullable(),
   createdAt: zod.coerce.date(),
 });
 

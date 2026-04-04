@@ -10,6 +10,8 @@ export const facebookIdsTable = pgTable("facebook_ids", {
   password: varchar("password", { length: 500 }),
   pinned: boolean("pinned").notNull().default(false),
   visited: boolean("visited").notNull().default(false),
+  note: varchar("note", { length: 1000 }),
+  tag: varchar("tag", { length: 50 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

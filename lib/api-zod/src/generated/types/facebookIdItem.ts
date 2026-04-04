@@ -13,5 +13,9 @@ export interface FacebookIdItem {
   password: string | null;
   pinned: boolean;
   visited: boolean;
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  tag: string | null;
   createdAt: Date;
 }

@@ -69,6 +69,8 @@ router.get("/facebook-ids", async (req: Request, res: Response) => {
       password: item.password,
       pinned: item.pinned,
       visited: item.visited,
+      note: item.note ?? null,
+      tag: item.tag ?? null,
       createdAt: item.createdAt.toISOString(),
     })),
   });
@@ -184,9 +186,11 @@ router.patch("/facebook-ids/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const updates: { pinned?: boolean; visited?: boolean } = {};
+  const updates: { pinned?: boolean; visited?: boolean; note?: string | null; tag?: string | null } = {};
   if (bodyParsed.data.pinned !== undefined) updates.pinned = bodyParsed.data.pinned;
   if (bodyParsed.data.visited !== undefined) updates.visited = bodyParsed.data.visited;
+  if ("note" in bodyParsed.data) updates.note = bodyParsed.data.note ?? null;
+  if ("tag" in bodyParsed.data) updates.tag = bodyParsed.data.tag ?? null;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });
@@ -211,6 +215,8 @@ router.patch("/facebook-ids/:id", async (req: Request, res: Response) => {
     password: item.password,
     pinned: item.pinned,
     visited: item.visited,
+    note: item.note ?? null,
+    tag: item.tag ?? null,
     createdAt: item.createdAt.toISOString(),
   });
 });

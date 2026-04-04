@@ -9,4 +9,6 @@
 export interface UpdateFacebookIdBody {
   pinned?: boolean;
   visited?: boolean;
+  note?: string | null;
+  tag?: string | null;
 }
