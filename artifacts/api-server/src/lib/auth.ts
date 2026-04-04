@@ -6,7 +6,6 @@ import { eq } from "drizzle-orm";
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 export const APP_PASSWORD = process.env.APP_PASSWORD ?? "adbc4231";
-export const SHARED_USER_ID = "shared";
 
 export interface SessionUser {
   id: string;

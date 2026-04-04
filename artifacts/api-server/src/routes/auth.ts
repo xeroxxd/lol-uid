@@ -8,7 +8,6 @@ import {
   SESSION_COOKIE,
   SESSION_TTL,
   APP_PASSWORD,
-  SHARED_USER_ID,
   type SessionData,
 } from "../lib/auth";
 
@@ -29,28 +28,34 @@ router.get("/auth/user", (req: Request, res: Response) => {
   res.json(
     GetCurrentAuthUserResponse.parse({
       user: authenticated
-        ? { ...req.user, isAdmin: true }
+        ? { ...req.user, isAdmin: false }
         : null,
     }),
   );
 });
 
 router.post("/login", async (req: Request, res: Response) => {
-  const { password } = req.body as { password?: string };
+  const { password, deviceId } = req.body as { password?: string; deviceId?: string };
 
   if (!password || password !== APP_PASSWORD) {
     res.status(401).json({ error: "Invalid password" });
     return;
   }
 
+  // Use the device's unique ID so each device has its own isolated data.
+  // If no deviceId provided (old clients), fall back to a random one.
+  const userId = (typeof deviceId === "string" && deviceId.length > 0)
+    ? deviceId.slice(0, 64)
+    : ("dev_" + Math.random().toString(36).slice(2));
+
   await db
     .insert(usersTable)
-    .values({ id: SHARED_USER_ID, email: null, firstName: "User", lastName: null, profileImageUrl: null })
+    .values({ id: userId, email: null, firstName: "User", lastName: null, profileImageUrl: null })
     .onConflictDoNothing();
 
   const sessionData: SessionData = {
     user: {
-      id: SHARED_USER_ID,
+      id: userId,
       email: null,
       firstName: "User",
       lastName: null,

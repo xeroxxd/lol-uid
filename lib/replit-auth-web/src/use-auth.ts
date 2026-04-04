@@ -3,6 +3,17 @@ import type { AuthUser } from "@workspace/api-client-react";
 
 export type { AuthUser };
 
+const DEVICE_ID_KEY = "fb_manager_device_id";
+
+function getOrCreateDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = "dev_" + crypto.randomUUID().replace(/-/g, "");
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
 interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
@@ -37,11 +48,12 @@ export function useAuth(): AuthState {
 
   const login = useCallback(async (password: string): Promise<{ ok: boolean; error?: string }> => {
     try {
+      const deviceId = getOrCreateDeviceId();
       const res = await fetch("/api/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, deviceId }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string };
