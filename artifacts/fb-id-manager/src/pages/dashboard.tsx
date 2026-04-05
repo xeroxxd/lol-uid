@@ -72,6 +72,265 @@ function ProfileAvatar({ profile, uid, size = 28 }: { profile: ProfileData; uid:
   );
 }
 
+type ValidatorStatus = "idle" | "running" | "done" | "aborted";
+type VResult = { uid: string; name: string | null; username: string | null; followerCount: string | null; photoUrl: string | null; instagramUsername: string | null };
+type FeedEntry = { uid: string; status: "live" | "dead"; name?: string | null };
+
+function ValidatorAvatar({ uid, name, photoUrl }: { uid: string; name: string | null; photoUrl: string | null }) {
+  const [err, setErr] = useState(false);
+  const initials = (name ?? uid).slice(0, 2).toUpperCase();
+  const hue = uid.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+  const grad = `linear-gradient(135deg,hsl(${hue},70%,40%),hsl(${(hue + 60) % 360},70%,55%))`;
+  if (photoUrl && !err) {
+    return <img src={photoUrl} alt={initials} onError={() => setErr(true)} className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0" />;
+  }
+  return (
+    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold border border-white/10 shrink-0" style={{ background: grad }}>
+      {initials}
+    </div>
+  );
+}
+
+function ValidatorPanel({ onClose, onImportLive, onImportDead }: { onClose: () => void; onImportLive: (uids: string[]) => void; onImportDead: (uids: string[]) => void }) {
+  const [inputText, setInputText] = useState("");
+  const [status, setStatus] = useState<ValidatorStatus>("idle");
+  const [liveResults, setLiveResults] = useState<VResult[]>([]);
+  const [deadResults, setDeadResults] = useState<string[]>([]);
+  const [feed, setFeed] = useState<FeedEntry[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState<"live" | "dead">("live");
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const uidCount = inputText.split("\n").filter((l) => l.trim()).length;
+  const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
+
+  const startValidation = async () => {
+    const uids = [...new Set(
+      inputText.split("\n").map((l) => l.trim().split("|")[0].trim()).filter(Boolean),
+    )];
+    if (!uids.length) return;
+    setStatus("running");
+    setLiveResults([]); setDeadResults([]); setFeed([]);
+    setProgress(0); setTotal(uids.length); setIsRateLimited(false);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const response = await fetch("/api/validate-bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uids }),
+        credentials: "include",
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) { setStatus("aborted"); return; }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6));
+            if (evt.event === "done") {
+              setStatus("done");
+            } else if (evt.event === "rate_limited") {
+              setIsRateLimited(true);
+              setTimeout(() => setIsRateLimited(false), ((evt.retryAfter as number) ?? 30) * 1000 + 1000);
+            } else if (evt.uid) {
+              setProgress(evt.progress as number);
+              const entry: FeedEntry = { uid: evt.uid as string, status: evt.status as "live" | "dead", name: (evt.name as string | null) ?? null };
+              setFeed((prev) => [entry, ...prev].slice(0, 50));
+              if (evt.status === "live") {
+                setLiveResults((prev) => [...prev, {
+                  uid: evt.uid as string,
+                  name: (evt.name as string | null) ?? null,
+                  username: (evt.username as string | null) ?? null,
+                  followerCount: (evt.followerCount as string | null) ?? null,
+                  photoUrl: (evt.photoUrl as string | null) ?? null,
+                  instagramUsername: (evt.instagramUsername as string | null) ?? null,
+                }]);
+              } else {
+                setDeadResults((prev) => [...prev, evt.uid as string]);
+              }
+            }
+          } catch {}
+        }
+      }
+      setStatus((s) => (s === "running" ? "done" : s));
+    } catch {
+      setStatus("aborted");
+    }
+  };
+
+  const abort = () => { abortRef.current?.abort(); setStatus("aborted"); };
+  const copyText = (t: string) => navigator.clipboard.writeText(t);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#070b16] text-white">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-[#0c1122] border-b border-[#1a2540] sticky top-0">
+        <Zap className="h-4 w-4 text-green-400 shrink-0" />
+        <span className="font-bold text-sm flex-1">Bulk Live Validator</span>
+        {status === "running" && (
+          <button onClick={abort} className="text-[11px] bg-red-600/30 border border-red-500/40 text-red-300 px-3 py-1 rounded-lg hover:bg-red-600/50 transition-colors">
+            Abort
+          </button>
+        )}
+        <button onClick={onClose} className="p-1.5 rounded text-slate-400 hover:text-white transition-colors">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-3">
+
+        {/* Idle: Input */}
+        {status === "idle" && (
+          <>
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3">
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs (one per line)</div>
+              <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={"100044388870940\njohnsmith\n100012345678..."}
+                rows={10}
+                className="w-full bg-[#070b16] border border-[#1a2540] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-lg px-3 py-2.5 outline-none focus:border-cyan-500/50 resize-none"
+              />
+              <div className="text-[10px] text-slate-600 mt-1.5">{uidCount} UIDs entered · max 5,000</div>
+            </div>
+            <button
+              onClick={startValidation}
+              disabled={uidCount === 0}
+              className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <Zap className="h-4 w-4" /> Start Validation ({uidCount} UIDs)
+            </button>
+            <div className="text-[10px] text-slate-600 text-center px-4 pb-4">
+              Each ID is checked live against Facebook. Live IDs (with profile data) and Dead IDs (no data) will be split into separate groups.
+            </div>
+          </>
+        )}
+
+        {/* Running: Progress + Feed */}
+        {status === "running" && (
+          <>
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3">
+              <div className="flex items-center justify-between text-[11px] mb-2">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  {progress}/{total} validated
+                  {isRateLimited && <span className="text-yellow-400 animate-pulse">⏳ Rate limited, pausing…</span>}
+                </span>
+                <span className="text-cyan-400 font-bold">{pct}%</span>
+              </div>
+              <div className="h-2.5 bg-[#1a2540] rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#22c55e,#06b6d4)" }} />
+              </div>
+              <div className="flex gap-4 mt-2.5 text-[11px]">
+                <span className="text-green-400 font-semibold">✅ {liveResults.length} Live</span>
+                <span className="text-red-400 font-semibold">💀 {deadResults.length} Dead</span>
+                <span className="text-slate-600 ml-auto">{total - progress} remaining</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider px-0.5 mb-1.5">Live Results Feed</div>
+              <div className="flex flex-col gap-1 max-h-[55vh] overflow-y-auto">
+                {feed.map((entry, i) => (
+                  <div key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${entry.status === "live" ? "bg-green-900/20 border border-green-500/20" : "bg-red-900/10 border border-red-500/10 opacity-60"}`}>
+                    <span className={entry.status === "live" ? "text-green-400" : "text-red-400"}>{entry.status === "live" ? "✅" : "💀"}</span>
+                    <span className={`font-mono truncate flex-1 ${entry.status === "live" ? "text-green-200" : "text-slate-500"}`}>{entry.name ?? entry.uid}</span>
+                    {entry.status === "live" && entry.name && <span className="text-slate-600 text-[10px] font-mono truncate max-w-[80px]">{entry.uid}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Done / Aborted: Results */}
+        {(status === "done" || status === "aborted") && (
+          <>
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-4 text-center">
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-3">
+                {status === "done" ? "✅ Validation Complete" : "⚠️ Validation Aborted"}
+              </div>
+              <div className="flex justify-center gap-8">
+                <div><div className="text-3xl font-bold text-green-400">{liveResults.length}</div><div className="text-[10px] text-slate-500 mt-0.5">Live IDs</div></div>
+                <div><div className="text-3xl font-bold text-red-400">{deadResults.length}</div><div className="text-[10px] text-slate-500 mt-0.5">Dead IDs</div></div>
+              </div>
+            </div>
+            <div className="flex gap-1.5">
+              <button onClick={() => setActiveTab("live")} className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${activeTab === "live" ? "bg-green-600/30 border-green-500/40 text-green-300" : "border-[#1a2540] text-slate-500 hover:text-white"}`}>✅ Live ({liveResults.length})</button>
+              <button onClick={() => setActiveTab("dead")} className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${activeTab === "dead" ? "bg-red-600/30 border-red-500/40 text-red-300" : "border-[#1a2540] text-slate-500 hover:text-white"}`}>💀 Dead ({deadResults.length})</button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {activeTab === "live" ? (
+                <>
+                  <button onClick={() => onImportLive(liveResults.map((r) => r.uid))} disabled={liveResults.length === 0}
+                    className="py-2.5 text-xs font-bold bg-green-600/30 border border-green-500/40 text-green-300 hover:bg-green-600/50 rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> Import Live
+                  </button>
+                  <button onClick={() => copyText(liveResults.map((r) => r.uid).join("\n"))} disabled={liveResults.length === 0}
+                    className="py-2.5 text-xs font-bold bg-[#1a2540] border border-[#1a2540] text-slate-300 hover:text-white rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+                    <Copy className="h-3.5 w-3.5" /> Copy Live UIDs
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => onImportDead(deadResults)} disabled={deadResults.length === 0}
+                    className="py-2.5 text-xs font-bold bg-red-600/30 border border-red-500/40 text-red-300 hover:bg-red-600/50 rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+                    <Download className="h-3.5 w-3.5" /> Import Dead
+                  </button>
+                  <button onClick={() => copyText(deadResults.join("\n"))} disabled={deadResults.length === 0}
+                    className="py-2.5 text-xs font-bold bg-[#1a2540] border border-[#1a2540] text-slate-300 hover:text-white rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+                    <Copy className="h-3.5 w-3.5" /> Copy Dead UIDs
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5 pb-4">
+              {activeTab === "live"
+                ? liveResults.map((r) => (
+                    <div key={r.uid} className="flex items-center gap-2.5 bg-green-900/15 border border-green-500/20 rounded-xl px-3 py-2">
+                      <ValidatorAvatar uid={r.uid} name={r.name} photoUrl={r.photoUrl} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {r.name && <span className="text-green-200 text-xs font-semibold truncate">{r.name}</span>}
+                          {r.username && <span className="text-cyan-400/70 text-[10px]">@{r.username}</span>}
+                          {r.followerCount && <span className="text-emerald-400 text-[10px]">{r.followerCount}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-slate-600 text-[10px] font-mono truncate">{r.uid}</span>
+                          {r.instagramUsername && <span className="text-pink-400 text-[10px]">📷 @{r.instagramUsername}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                : (
+                  <div className="bg-[#0c1122] border border-[#1a2540] rounded-xl p-3 max-h-[60vh] overflow-y-auto">
+                    {deadResults.map((uid, i) => (
+                      <div key={i} className="text-[11px] text-slate-600 font-mono py-0.5">{uid}</div>
+                    ))}
+                  </div>
+                )
+              }
+            </div>
+            <button onClick={() => { setStatus("idle"); setLiveResults([]); setDeadResults([]); setFeed([]); setProgress(0); }}
+              className="w-full py-2.5 border border-[#1a2540] text-slate-400 hover:text-white text-xs rounded-xl transition-colors mb-24 flex items-center justify-center gap-1.5">
+              <RotateCcw className="h-3 w-3" /> Validate Again
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function highlightText(text: string, query: string): ReactNode {
   if (!query.trim()) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -152,6 +411,7 @@ export default function Dashboard() {
       return m;
     } catch { return new Map(); }
   });
+  const [showValidator, setShowValidator] = useState(false);
   const [swipedId, setSwipedId] = useState<number | null>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
@@ -196,6 +456,44 @@ export default function Dashboard() {
   });
 
   const importMutationForUndo = useBulkImportFacebookIds({ mutation: {} });
+
+  const handleImportLive = useCallback(async (uids: string[]) => {
+    if (!uids.length) return;
+    try {
+      const r = await fetch("/api/facebook-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: uids.join("\n") }),
+        credentials: "include",
+      });
+      const data = await r.json() as { imported?: number };
+      toast({ description: `✅ Imported ${data.imported ?? 0} live IDs.` });
+      setShowValidator(false);
+      queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
+    } catch {
+      toast({ description: "Import failed", variant: "destructive" });
+    }
+  }, [queryClient, toast]);
+
+  const handleImportDead = useCallback(async (uids: string[]) => {
+    if (!uids.length) return;
+    try {
+      const r = await fetch("/api/facebook-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: uids.join("\n"), defaultTag: "Dead" }),
+        credentials: "include",
+      });
+      const data = await r.json() as { imported?: number };
+      toast({ description: `💀 Imported ${data.imported ?? 0} dead IDs (tagged "Dead").` });
+      setShowValidator(false);
+      queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
+    } catch {
+      toast({ description: "Import failed", variant: "destructive" });
+    }
+  }, [queryClient, toast]);
 
   const deleteWithUndo = useCallback((item: { id: number; uid: string; password: string | null; pinned: boolean; visited: boolean; note: string | null; tag: string | null }) => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -657,15 +955,15 @@ export default function Dashboard() {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-5 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           {[
-            { label: "SEARCH", icon: <Search className="h-3.5 w-3.5" />, action: () => { setShowSearch((v) => !v); setShowSort(false); } },
-            { label: "SAVE ALL", icon: <Download className="h-3.5 w-3.5" />, action: handleSaveAll },
-            { label: "COPY ALL", icon: <Copy className="h-3.5 w-3.5" />, action: handleCopyAll },
-            { label: "SORT", icon: <SortAsc className="h-3.5 w-3.5" />, action: () => { setShowSort((v) => !v); setShowSearch(false); } },
-          ].map(({ label, icon, action }) => (
+            { label: "SEARCH", icon: <Search className="h-3.5 w-3.5" />, action: () => { setShowSearch((v) => !v); setShowSort(false); }, cls: "text-slate-400" },
+            { label: "SAVE ALL", icon: <Download className="h-3.5 w-3.5" />, action: handleSaveAll, cls: "text-slate-400" },
+            { label: "COPY ALL", icon: <Copy className="h-3.5 w-3.5" />, action: handleCopyAll, cls: "text-slate-400" },
+            { label: "SORT", icon: <SortAsc className="h-3.5 w-3.5" />, action: () => { setShowSort((v) => !v); setShowSearch(false); }, cls: "text-slate-400" },
+          ].map(({ label, icon, action, cls }) => (
             <button key={label} onClick={action}
-              className="flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold text-slate-400 hover:text-white hover:border-cyan-500/40 transition-colors">
+              className={`flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold ${cls} hover:text-white hover:border-cyan-500/40 transition-colors`}>
               {icon}{label}
             </button>
           ))}
@@ -674,6 +972,11 @@ export default function Dashboard() {
             title="Re-fetch all visible profiles"
             className="flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold text-purple-400 hover:text-purple-200 hover:border-purple-500/40 transition-colors">
             <RefreshCw className="h-3.5 w-3.5" />REFETCH
+          </button>
+          <button
+            onClick={() => setShowValidator(true)}
+            className="flex flex-col items-center gap-1 bg-green-900/20 border border-green-500/30 rounded-lg py-2 px-1 text-[10px] font-bold text-green-400 hover:text-green-200 hover:border-green-400/50 transition-colors">
+            <Zap className="h-3.5 w-3.5" />VALIDATE
           </button>
         </div>
 
@@ -1391,6 +1694,15 @@ export default function Dashboard() {
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
+      )}
+
+      {/* Validator Overlay */}
+      {showValidator && (
+        <ValidatorPanel
+          onClose={() => setShowValidator(false)}
+          onImportLive={handleImportLive}
+          onImportDead={handleImportDead}
+        />
       )}
 
       {/* Import Modal */}

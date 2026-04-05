@@ -148,6 +148,9 @@ router.post("/facebook-ids", async (req: Request, res: Response) => {
   }
 
   const { rawText } = parsed.data;
+  const rawDefaultTag = typeof req.body.defaultTag === "string" ? req.body.defaultTag.slice(0, 50) : null;
+  const defaultTag: string | null = rawDefaultTag || null;
+
   const lines = rawText
     .split("\n")
     .map((l) => l.trim())
@@ -160,7 +163,7 @@ router.post("/facebook-ids", async (req: Request, res: Response) => {
 
   const existingUids = new Set(existing.map((e) => e.uid));
 
-  const toInsert: { userId: string; uid: string; password: string | null }[] = [];
+  const toInsert: { userId: string; uid: string; password: string | null; tag: string | null }[] = [];
   const seenInBatch = new Set<string>();
   let duplicatesSkipped = 0;
 
@@ -177,7 +180,7 @@ router.post("/facebook-ids", async (req: Request, res: Response) => {
     }
 
     seenInBatch.add(uid);
-    toInsert.push({ userId, uid, password });
+    toInsert.push({ userId, uid, password, tag: defaultTag });
   }
 
   if (toInsert.length > 0) {
