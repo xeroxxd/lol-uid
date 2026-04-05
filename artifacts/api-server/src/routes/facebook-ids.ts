@@ -30,9 +30,13 @@ router.get("/facebook-ids/daily-stats", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
   const userId = req.user!.id;
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  const rawDays = Number(req.query.days ?? 7);
+  const days = rawDays === 30 ? 30 : 7;
+  const span = days - 1;
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - span);
+  cutoff.setHours(0, 0, 0, 0);
 
   const rows = await db
     .select({
@@ -43,15 +47,14 @@ router.get("/facebook-ids/daily-stats", async (req: Request, res: Response) => {
     .where(
       and(
         eq(facebookIdsTable.userId, userId),
-        gte(facebookIdsTable.visitedAt, sevenDaysAgo),
+        gte(facebookIdsTable.visitedAt, cutoff),
       ),
     )
     .groupBy(sql`DATE(${facebookIdsTable.visitedAt} AT TIME ZONE 'UTC')`)
     .orderBy(sql`DATE(${facebookIdsTable.visitedAt} AT TIME ZONE 'UTC')`);
 
-  // Fill in all 7 days (including zeros)
   const result: { date: string; count: number }[] = [];
-  for (let i = 6; i >= 0; i--) {
+  for (let i = span; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().slice(0, 10);
@@ -60,6 +63,27 @@ router.get("/facebook-ids/daily-stats", async (req: Request, res: Response) => {
   }
 
   res.json({ days: result });
+});
+
+router.get("/facebook-ids/tag-stats", async (req: Request, res: Response) => {
+  if (!requireAuth(req, res)) return;
+  const userId = req.user!.id;
+
+  const rows = await db
+    .select({
+      tag: facebookIdsTable.tag,
+      count: count(),
+    })
+    .from(facebookIdsTable)
+    .where(eq(facebookIdsTable.userId, userId))
+    .groupBy(facebookIdsTable.tag);
+
+  const result: { tag: string; count: number }[] = rows.map((r) => ({
+    tag: r.tag ?? "Untagged",
+    count: Number(r.count),
+  }));
+
+  res.json({ tags: result });
 });
 
 router.get("/facebook-ids/stats", async (req: Request, res: Response) => {

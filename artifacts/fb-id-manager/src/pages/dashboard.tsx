@@ -96,6 +96,9 @@ export default function Dashboard() {
   const [showCharts, setShowCharts] = useState(() => {
     try { return localStorage.getItem("fb_show_charts") === "true"; } catch { return false; }
   });
+  const [chartPeriod, setChartPeriod] = useState<"7d" | "30d">("7d");
+  const [extendedDays, setExtendedDays] = useState<{ date: string; count: number }[]>([]);
+  const [tagStats, setTagStats] = useState<{ tag: string; count: number }[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">(() => {
     try { return (localStorage.getItem("fb_font_size") as "sm" | "base" | "lg") ?? "sm"; } catch { return "sm"; }
@@ -232,6 +235,22 @@ export default function Dashboard() {
   useEffect(() => {
     return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); };
   }, []);
+
+  useEffect(() => {
+    if (!showCharts) return;
+    fetch("/api/facebook-ids/tag-stats", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setTagStats(d.tags ?? []))
+      .catch(() => {});
+  }, [showCharts, idsData]);
+
+  useEffect(() => {
+    if (!showCharts || chartPeriod !== "30d") return;
+    fetch("/api/facebook-ids/daily-stats?days=30", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setExtendedDays(d.days ?? []))
+      .catch(() => {});
+  }, [showCharts, chartPeriod]);
 
   const allItems = idsData?.items ?? [];
 
@@ -558,72 +577,136 @@ export default function Dashboard() {
         </button>
 
         {/* Charts panel */}
-        {showCharts && (
-          <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-4">
-            {/* Pie: Checked / Unchecked / Saved */}
-            <div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Status Breakdown</div>
-              <ResponsiveContainer width="100%" height={160}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: "Checked", value: checked || 0 },
-                      { name: "Unchecked", value: left || 0 },
-                      { name: "Saved", value: saved || 0 },
-                    ]}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={68}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    <Cell fill="#a855f7" />
-                    <Cell fill="#ef4444" />
-                    <Cell fill="#22c55e" />
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
-                    itemStyle={{ color: "#e2e8f0" }}
-                  />
-                  <Legend
-                    iconType="circle"
-                    iconSize={8}
-                    formatter={(v) => <span style={{ fontSize: 10, color: "#94a3b8" }}>{v}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+        {showCharts && (() => {
+          const tagColors = ["#f59e0b", "#ef4444", "#3b82f6", "#22c55e", "#64748b", "#8b5cf6", "#06b6d4", "#f97316"];
+          const sortedTags = [...tagStats].sort((a, b) => b.count - a.count);
+          const chartDays = chartPeriod === "30d" ? extendedDays : (dailyData?.days ?? []);
+          const barSize = chartPeriod === "30d" ? 6 : 16;
+          return (
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-4">
 
-            {/* Bar: daily check activity */}
-            <div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Daily Checks (Last 7 Days)</div>
-              <ResponsiveContainer width="100%" height={120}>
-                <BarChart data={dailyData?.days ?? []} barSize={16}>
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={(d: string) => {
-                      const dt = new Date(d + "T00:00:00");
-                      return `${dt.getMonth() + 1}/${dt.getDate()}`;
-                    }}
-                    tick={{ fontSize: 10, fill: "#64748b" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
-                    itemStyle={{ color: "#e2e8f0" }}
-                    labelFormatter={(d: string) => {
-                      const dt = new Date(d + "T00:00:00");
-                      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-                    }}
-                  />
-                  <Bar dataKey="count" name="Checks" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {/* Stat row: profiles fetched */}
+              {profileData.size > 0 && (
+                <div className="flex items-center gap-2 bg-purple-900/20 border border-purple-500/20 rounded-lg px-3 py-2">
+                  <User className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                  <span className="text-[11px] text-purple-300 font-semibold">{profileData.size} profile{profileData.size !== 1 ? "s" : ""} fetched this session</span>
+                </div>
+              )}
+
+              {/* Pie: Status Breakdown */}
+              <div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Status Breakdown</div>
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "Checked", value: checked || 0 },
+                        { name: "Unchecked", value: left || 0 },
+                        { name: "Saved", value: saved || 0 },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={68}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      <Cell fill="#a855f7" />
+                      <Cell fill="#ef4444" />
+                      <Cell fill="#22c55e" />
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
+                      itemStyle={{ color: "#e2e8f0" }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      formatter={(v) => <span style={{ fontSize: 10, color: "#94a3b8" }}>{v}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Pie: Tag Distribution */}
+              {sortedTags.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Tag Distribution</div>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <PieChart>
+                      <Pie
+                        data={sortedTags}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={68}
+                        paddingAngle={3}
+                        dataKey="count"
+                        nameKey="tag"
+                      >
+                        {sortedTags.map((_, i) => (
+                          <Cell key={i} fill={tagColors[i % tagColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
+                        itemStyle={{ color: "#e2e8f0" }}
+                        formatter={(v, n) => [`${v} IDs`, n]}
+                      />
+                      <Legend
+                        iconType="circle"
+                        iconSize={8}
+                        formatter={(v) => <span style={{ fontSize: 10, color: "#94a3b8" }}>{v}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Bar: Activity chart with period toggle */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                    Check Activity
+                  </div>
+                  <div className="flex gap-1">
+                    {(["7d", "30d"] as const).map((p) => (
+                      <button key={p} onClick={() => setChartPeriod(p)}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors
+                          ${chartPeriod === p ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                        {p === "7d" ? "7 Days" : "30 Days"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={120}>
+                  <BarChart data={chartDays} barSize={barSize}>
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(d: string) => {
+                        const dt = new Date(d + "T00:00:00");
+                        return `${dt.getMonth() + 1}/${dt.getDate()}`;
+                      }}
+                      tick={{ fontSize: 10, fill: "#64748b" }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={chartPeriod === "30d" ? 4 : 0}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
+                      itemStyle={{ color: "#e2e8f0" }}
+                      labelFormatter={(d: string) => {
+                        const dt = new Date(d + "T00:00:00");
+                        return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                      }}
+                    />
+                    <Bar dataKey="count" name="Checks" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Export rows */}
         <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] overflow-hidden divide-y divide-[#1a2540]">
