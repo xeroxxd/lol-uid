@@ -21,14 +21,14 @@ import {
   Zap, Trash2, LogOut, Plus, Search, Copy, Download,
   ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
   FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
-  Settings, List, Grid3x3, Type, Undo2, User, ExternalLink,
+  Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon, Save,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
 
-type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved" | "alpha" | "recent";
+type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved" | "alpha" | "recent" | "name";
 type FilterMode = "all" | "checked" | "unchecked" | "saved" | "noted" | "tagged";
 type CopyFormat = "both" | "uid" | "pass";
 
@@ -109,8 +109,22 @@ export default function Dashboard() {
   const [visibleCount, setVisibleCount] = useState(50);
   const [undoItem, setUndoItem] = useState<{ id: number; uid: string; password: string | null; pinned: boolean; visited: boolean; note: string | null; tag: string | null } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    try { return (localStorage.getItem("fb_theme") as "dark" | "light") ?? "dark"; } catch { return "dark"; }
+  });
+  const [visitCounts, setVisitCounts] = useState<Map<string, number>>(() => {
+    try {
+      const keys = Object.keys(localStorage).filter((k) => k.startsWith("fb_visit_"));
+      const m = new Map<string, number>();
+      for (const k of keys) m.set(k.slice("fb_visit_".length), Number(localStorage.getItem(k) ?? 0));
+      return m;
+    } catch { return new Map(); }
+  });
   const [swipedId, setSwipedId] = useState<number | null>(null);
   const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
   const listBottomRef = useRef<HTMLDivElement>(null);
   const [profileData, setProfileData] = useState<Map<string, ProfileData>>(new Map());
   const fetchedUids = useRef<Set<string>>(new Set());
@@ -233,7 +247,24 @@ export default function Dashboard() {
   }, [idsLoading]);
 
   useEffect(() => {
-    return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); };
+    document.documentElement.setAttribute("data-fb-theme", theme);
+    return () => {};
+  }, [theme]);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    };
+  }, []);
+
+  const incrementVisit = useCallback((uid: string) => {
+    try {
+      const key = `fb_visit_${uid}`;
+      const next = Number(localStorage.getItem(key) ?? 0) + 1;
+      localStorage.setItem(key, String(next));
+      setVisitCounts((prev) => new Map(prev).set(uid, next));
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -279,9 +310,17 @@ export default function Dashboard() {
         const tb = (b as { visitedAt?: string | null }).visitedAt ? new Date((b as { visitedAt: string }).visitedAt).getTime() : 0;
         return tb - ta;
       }); break;
+      case "name": items.sort((a, b) => {
+        const na = profileData.get(a.uid)?.name ?? null;
+        const nb = profileData.get(b.uid)?.name ?? null;
+        if (na && nb) return na.localeCompare(nb);
+        if (na) return -1;
+        if (nb) return 1;
+        return 0;
+      }); break;
     }
     return items;
-  }, [allItems, searchQuery, sortMode, filterMode]);
+  }, [allItems, searchQuery, sortMode, filterMode, profileData]);
 
   useEffect(() => {
     if (idsLoading) return;
@@ -385,9 +424,9 @@ export default function Dashboard() {
   ];
 
   return (
-    <div ref={topRef} className="min-h-screen bg-[#070b16] text-white flex flex-col">
+    <div id="fb-root" ref={topRef} data-theme={theme} className="min-h-screen bg-[#070b16] text-white flex flex-col">
       {/* Header */}
-      <header className="bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex items-center gap-2 sticky top-0 z-30">
+      <header className="fb-header bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex items-center gap-2 sticky top-0 z-30">
         <Shield className="h-5 w-5 text-cyan-400 shrink-0" />
         <span className="font-bold text-sm text-white flex-1 truncate">
           FB UID Manager Pro <span className="text-cyan-400">v2</span>
@@ -451,11 +490,12 @@ export default function Dashboard() {
 
       {/* Sort panel */}
       {showSort && (
-        <div className="bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex flex-wrap gap-1.5">
+        <div className="fb-panel bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex flex-wrap gap-1.5">
           {([
             { key: "newest", label: "🆕 Newest" },
             { key: "oldest", label: "📅 Oldest" },
             { key: "alpha", label: "🔤 A→Z" },
+            { key: "name", label: "👤 By Name" },
             { key: "recent", label: "🕐 Last visited" },
             { key: "checked", label: "✅ Checked first" },
             { key: "unchecked", label: "⏳ Unchecked first" },
@@ -472,7 +512,7 @@ export default function Dashboard() {
 
       {/* Settings panel */}
       {showSettings && (
-        <div className="bg-[#0c1122] border-b border-[#1a2540] px-3 py-3 space-y-3">
+        <div className="fb-panel bg-[#0c1122] border-b border-[#1a2540] px-3 py-3 space-y-3">
           <div className="flex items-center gap-2">
             <Type className="h-3.5 w-3.5 text-slate-500 shrink-0" />
             <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">Font Size</span>
@@ -502,12 +542,25 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            {theme === "dark" ? <Moon className="h-3.5 w-3.5 text-slate-500 shrink-0" /> : <Sun className="h-3.5 w-3.5 text-yellow-400 shrink-0" />}
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">Theme</span>
+            <div className="flex gap-1.5">
+              {(["dark", "light"] as const).map((t) => (
+                <button key={t} onClick={() => { setTheme(t); try { localStorage.setItem("fb_theme", t); } catch {} }}
+                  className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
+                    ${theme === t ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                  {t === "dark" ? <><Moon className="h-2.5 w-2.5" /> Dark</> : <><Sun className="h-2.5 w-2.5" /> Light</>}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {/* Bulk actions bar */}
       {selected.size > 0 && (
-        <div className="bg-[#0d1a2e] border-b border-cyan-500/30 px-3 py-2 flex items-center gap-2 sticky top-[45px] z-20">
+        <div className="fb-bulk-bar bg-[#0d1a2e] border-b border-cyan-500/30 px-3 py-2 flex items-center gap-2 sticky top-[45px] z-20">
           <span className="text-xs text-cyan-400 font-bold">{selected.size} selected</span>
           <div className="flex-1 flex flex-wrap gap-1.5">
             <button onClick={bulkCopy} className="text-[10px] bg-cyan-700/40 hover:bg-cyan-600/50 text-cyan-300 px-2 py-1 rounded flex items-center gap-1">
@@ -798,7 +851,7 @@ export default function Dashboard() {
               {filteredItems.slice(0, visibleCount).map((item, idx) => (
                 <div key={item.id}
                   className={`rounded-lg border p-2 transition-all duration-150 relative overflow-hidden
-                    ${item.pinned ? "border-green-500/30 bg-[#0b1a10]" : "border-[#1a2540] bg-[#0c1122]"}
+                    ${item.pinned ? "fb-card-pinned border-green-500/30 bg-[#0b1a10]" : "fb-card border-[#1a2540] bg-[#0c1122]"}
                     ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}
                   onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
                   onTouchEnd={(e) => {
@@ -859,28 +912,68 @@ export default function Dashboard() {
             /* Full list mode */
             filteredItems.slice(0, visibleCount).map((item, idx) => {
               const profile = profileData.get(item.uid);
+              const visitCount = visitCounts.get(item.uid) ?? 0;
+              const startLongPress = (id: number) => {
+                longPressFired.current = false;
+                if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                longPressTimer.current = setTimeout(() => {
+                  longPressFired.current = true;
+                  if (navigator.vibrate) navigator.vibrate(40);
+                  toggleSelect(id);
+                }, 500);
+              };
+              const cancelLongPress = () => {
+                if (longPressTimer.current) clearTimeout(longPressTimer.current);
+              };
               return (
                 <div key={item.id}
                   className={`rounded-xl border transition-all duration-150 overflow-hidden relative
-                    ${item.pinned ? "border-green-500/30 bg-[#0b1a10]" : "border-[#1a2540] bg-[#0c1122]"}
+                    ${item.pinned ? "fb-card-pinned border-green-500/30 bg-[#0b1a10]" : "fb-card border-[#1a2540] bg-[#0c1122]"}
                     ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}
+                  onPointerDown={(e) => {
+                    if ((e.target as Element).closest("button,a,input,textarea")) return;
+                    touchStartX.current = e.clientX;
+                    touchStartY.current = e.clientY;
+                    startLongPress(item.id);
+                  }}
+                  onPointerMove={(e) => {
+                    const dx = Math.abs(e.clientX - touchStartX.current);
+                    const dy = Math.abs(e.clientY - touchStartY.current);
+                    if (dx > 8 || dy > 8) cancelLongPress();
+                  }}
+                  onPointerUp={cancelLongPress}
+                  onPointerLeave={cancelLongPress}
                   onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
                   onTouchEnd={(e) => {
+                    cancelLongPress();
+                    if (longPressFired.current) return;
                     const dx = touchStartX.current - e.changedTouches[0].clientX;
                     if (dx > 70) setSwipedId(swipedId === item.id ? null : item.id);
                     else if (dx < -30) setSwipedId(null);
                   }}>
 
-                  {/* Swipe-delete overlay */}
+                  {/* Swipe overlay — Save / Check / Delete */}
                   {swipedId === item.id && (
-                    <div className="absolute inset-0 bg-red-900/90 flex items-center justify-center z-10 gap-4">
+                    <div className="absolute inset-0 bg-slate-900/95 flex items-center justify-center z-10 gap-5">
+                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
+                        className={`flex flex-col items-center gap-1.5 active:scale-95 transition-transform
+                          ${item.pinned ? "text-green-300" : "text-green-400"}`}>
+                        <Save className="h-7 w-7" />
+                        <span className="text-[11px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
+                      </button>
+                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
+                        className={`flex flex-col items-center gap-1.5 active:scale-95 transition-transform
+                          ${item.visited ? "text-cyan-300" : "text-cyan-400"}`}>
+                        {item.visited ? <CheckSquare className="h-7 w-7" /> : <Square className="h-7 w-7" />}
+                        <span className="text-[11px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
+                      </button>
                       <button onClick={() => deleteWithUndo(item)}
-                        className="flex flex-col items-center gap-1.5 text-red-200 active:scale-95">
+                        className="flex flex-col items-center gap-1.5 text-red-400 active:scale-95 transition-transform">
                         <Trash2 className="h-7 w-7" />
-                        <span className="text-xs font-bold">Delete</span>
+                        <span className="text-[11px] font-bold">Delete</span>
                       </button>
                       <button onClick={() => setSwipedId(null)}
-                        className="absolute top-2 right-2 text-red-400 hover:text-white">
+                        className="absolute top-2 right-2 text-slate-500 hover:text-white">
                         <X className="h-5 w-5" />
                       </button>
                     </div>
@@ -935,12 +1028,20 @@ export default function Dashboard() {
                       href={`https://facebook.com/${item.uid}`}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                      onClick={() => {
+                        incrementVisit(item.uid);
+                        if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } });
+                      }}
                       className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate transition-colors flex items-center gap-1
                         ${item.visited ? "line-through text-slate-500" : "text-cyan-300 hover:text-cyan-100"}`}>
                       {highlightText(item.uid, searchQuery)}
                       <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-50" />
                     </a>
+                    {visitCount > 0 && (
+                      <span className="shrink-0 text-[9px] bg-violet-600/40 text-violet-300 px-1 py-0.5 rounded font-bold leading-none">
+                        {visitCount}×
+                      </span>
+                    )}
                     <button
                       onClick={() => copy(item.uid, "UID copied!")}
                       title="Copy UID"
@@ -990,7 +1091,7 @@ export default function Dashboard() {
                         onChange={(e) => setNoteText(e.target.value)}
                         placeholder="Add a note..."
                         rows={2}
-                        className="w-full bg-[#0a1020] border border-blue-500/40 text-blue-200 placeholder-slate-600 text-xs rounded-lg px-2 py-1.5 outline-none resize-none focus:border-blue-400/60"
+                        className="fb-note-input w-full bg-[#0a1020] border border-blue-500/40 text-blue-200 placeholder-slate-600 text-xs rounded-lg px-2 py-1.5 outline-none resize-none focus:border-blue-400/60"
                       />
                       <div className="flex gap-1.5 mt-1">
                         <button onClick={() => saveNote(item.id)}

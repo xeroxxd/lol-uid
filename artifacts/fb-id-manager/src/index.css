@@ -160,6 +160,45 @@
   /* same dark variables, forced application */
 }
 
+/* ── FB Manager Light Theme ── */
+/* Applied via document.documentElement.setAttribute("data-fb-theme", "light") */
+/* Semantic helper classes added to key elements for reliable theme targeting    */
+
+:root[data-fb-theme="light"] #fb-root {
+  background-color: #f0f4f8 !important;
+  color: #0f172a !important;
+}
+:root[data-fb-theme="light"] .fb-header {
+  background-color: #ffffff !important;
+  border-color: #d1d9e6 !important;
+}
+:root[data-fb-theme="light"] .fb-panel {
+  background-color: #ffffff !important;
+  border-color: #d1d9e6 !important;
+}
+:root[data-fb-theme="light"] .fb-card {
+  background-color: #ffffff !important;
+  border-color: #d1d9e6 !important;
+}
+:root[data-fb-theme="light"] .fb-card-pinned {
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+:root[data-fb-theme="light"] .fb-bulk-bar {
+  background-color: #dde4f0 !important;
+  border-color: #a5b4fc !important;
+}
+:root[data-fb-theme="light"] .fb-note-input {
+  background-color: #f8fafc !important;
+  border-color: #d1d9e6 !important;
+  color: #1e293b !important;
+}
+:root[data-fb-theme="light"] .fb-btn {
+  background-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+:root[data-fb-theme="light"] .fb-divider { border-color: #d1d9e6 !important; }
+
 @layer base {
   * {
     @apply border-border;
