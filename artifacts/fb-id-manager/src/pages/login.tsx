@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useEffect, useState, useRef } from "react";
 import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
+import { SunMoonAnimation } from "@/components/SunMoonAnimation";
 
 const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
   id: i,
@@ -120,6 +121,17 @@ export default function Login() {
           transition={{ repeat: Infinity, duration: p.duration, delay: p.delay, ease: "easeInOut" }}
         />
       ))}
+
+      {/* Sun & Moon Animation header */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 mb-4 rounded-2xl overflow-hidden"
+        style={{ width: "100%", maxWidth: 360 }}
+      >
+        <SunMoonAnimation className="w-full h-24 rounded-2xl" />
+      </motion.div>
 
       {/* Card */}
       <motion.div
