@@ -22,6 +22,7 @@ import type {
   BeginBrowserLoginParams,
   BulkImportBody,
   BulkImportResult,
+  DailyStatsResponse,
   DeleteResult,
   ErrorEnvelope,
   FacebookIdItem,
@@ -1129,6 +1130,72 @@ export function useGetFacebookIdStats<
     queryKey: QueryKey;
   };
 
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get daily check activity for the current user (last 7 days)
+ */
+export const getGetDailyStatsUrl = () => {
+  return `/api/facebook-ids/daily-stats`;
+};
+
+export const getDailyStats = async (
+  options?: RequestInit,
+): Promise<DailyStatsResponse> => {
+  return customFetch<DailyStatsResponse>(getGetDailyStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDailyStatsQueryKey = () => {
+  return [`/api/facebook-ids/daily-stats`] as const;
+};
+
+export const getGetDailyStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDailyStats>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDailyStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetDailyStatsQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDailyStats>>> = ({
+    signal,
+  }) => getDailyStats({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDailyStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDailyStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDailyStats>>
+>;
+export type GetDailyStatsQueryError = ErrorType<ErrorEnvelope>;
+
+export function useGetDailyStats<
+  TData = Awaited<ReturnType<typeof getDailyStats>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDailyStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDailyStatsQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
   return { ...query, queryKey: queryOptions.queryKey };
 }
 

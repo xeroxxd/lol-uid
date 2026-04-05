@@ -99,6 +99,15 @@ export interface FacebookIdStats {
   unvisited: number;
 }
 
+export interface DailyStatsDayItem {
+  date: string;
+  count: number;
+}
+
+export interface DailyStatsResponse {
+  days: DailyStatsDayItem[];
+}
+
 export interface AdminUserItem {
   id: string;
   /** @nullable */

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, facebookIdsTable, usersTable } from "@workspace/db";
-import { eq, and, count, sql } from "drizzle-orm";
+import { eq, and, count, sql, gte } from "drizzle-orm";
 import {
   BulkImportFacebookIdsBody,
   UpdateFacebookIdBody,
@@ -25,6 +25,42 @@ function isAdmin(req: Request): boolean {
   if (!adminUserId) return false;
   return req.user.id === adminUserId;
 }
+
+router.get("/facebook-ids/daily-stats", async (req: Request, res: Response) => {
+  if (!requireAuth(req, res)) return;
+  const userId = req.user!.id;
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const rows = await db
+    .select({
+      date: sql<string>`DATE(${facebookIdsTable.visitedAt} AT TIME ZONE 'UTC')`,
+      count: count(),
+    })
+    .from(facebookIdsTable)
+    .where(
+      and(
+        eq(facebookIdsTable.userId, userId),
+        gte(facebookIdsTable.visitedAt, sevenDaysAgo),
+      ),
+    )
+    .groupBy(sql`DATE(${facebookIdsTable.visitedAt} AT TIME ZONE 'UTC')`)
+    .orderBy(sql`DATE(${facebookIdsTable.visitedAt} AT TIME ZONE 'UTC')`);
+
+  // Fill in all 7 days (including zeros)
+  const result: { date: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const found = rows.find((r) => r.date === dateStr);
+    result.push({ date: dateStr, count: Number(found?.count ?? 0) });
+  }
+
+  res.json({ days: result });
+});
 
 router.get("/facebook-ids/stats", async (req: Request, res: Response) => {
   if (!requireAuth(req, res)) return;
@@ -186,9 +222,12 @@ router.patch("/facebook-ids/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const updates: { pinned?: boolean; visited?: boolean; note?: string | null; tag?: string | null } = {};
+  const updates: { pinned?: boolean; visited?: boolean; visitedAt?: Date | null; note?: string | null; tag?: string | null } = {};
   if (bodyParsed.data.pinned !== undefined) updates.pinned = bodyParsed.data.pinned;
-  if (bodyParsed.data.visited !== undefined) updates.visited = bodyParsed.data.visited;
+  if (bodyParsed.data.visited !== undefined) {
+    updates.visited = bodyParsed.data.visited;
+    updates.visitedAt = bodyParsed.data.visited ? new Date() : null;
+  }
   if ("note" in bodyParsed.data) updates.note = bodyParsed.data.note ?? null;
   if ("tag" in bodyParsed.data) updates.tag = bodyParsed.data.tag ?? null;
 

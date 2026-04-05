@@ -8,8 +8,10 @@ import {
   useDeleteFacebookId,
   useUpdateFacebookId,
   useGetFacebookIdStats,
+  useGetDailyStats,
   getListFacebookIdsQueryKey,
   getGetFacebookIdStatsQueryKey,
+  getGetDailyStatsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -17,8 +19,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Zap, Trash2, LogOut, Plus, Search, Copy, Download,
   ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
-  FileText, Tag, CheckSquare, Square,
+  FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
 } from "lucide-react";
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
+  ResponsiveContainer, Legend,
+} from "recharts";
 
 type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved";
 type FilterMode = "all" | "checked" | "unchecked" | "saved" | "noted" | "tagged";
@@ -58,12 +64,18 @@ export default function Dashboard() {
   const [noteText, setNoteText] = useState("");
   const [showTagPicker, setShowTagPicker] = useState<number | null>(null);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showCharts, setShowCharts] = useState(() => {
+    try { return localStorage.getItem("fb_show_charts") === "true"; } catch { return false; }
+  });
 
   const { data: idsData, isLoading: idsLoading } = useListFacebookIds({
     query: { queryKey: getListFacebookIdsQueryKey() },
   });
   const { data: statsData } = useGetFacebookIdStats({
     query: { queryKey: getGetFacebookIdStatsQueryKey() },
+  });
+  const { data: dailyData } = useGetDailyStats({
+    query: { queryKey: getGetDailyStatsQueryKey() },
   });
 
   const importMutation = useBulkImportFacebookIds({
@@ -92,6 +104,7 @@ export default function Dashboard() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDailyStatsQueryKey() });
       },
     },
   });
@@ -353,6 +366,87 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+
+        {/* Analytics toggle */}
+        <button
+          onClick={() => {
+            const next = !showCharts;
+            setShowCharts(next);
+            try { localStorage.setItem("fb_show_charts", String(next)); } catch {}
+          }}
+          className="flex items-center justify-between w-full bg-[#0c1122] border border-[#1a2540] rounded-xl px-3 py-2.5 text-xs text-slate-400 hover:text-white hover:border-cyan-500/40 transition-colors"
+        >
+          <span className="flex items-center gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> Analytics</span>
+          {showCharts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+
+        {/* Charts panel */}
+        {showCharts && (
+          <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-4">
+            {/* Pie: Checked / Unchecked / Saved */}
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Status Breakdown</div>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Checked", value: checked || 0 },
+                      { name: "Unchecked", value: left || 0 },
+                      { name: "Saved", value: saved || 0 },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={68}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    <Cell fill="#a855f7" />
+                    <Cell fill="#ef4444" />
+                    <Cell fill="#22c55e" />
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
+                    itemStyle={{ color: "#e2e8f0" }}
+                  />
+                  <Legend
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(v) => <span style={{ fontSize: 10, color: "#94a3b8" }}>{v}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Bar: daily check activity */}
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Daily Checks (Last 7 Days)</div>
+              <ResponsiveContainer width="100%" height={120}>
+                <BarChart data={dailyData?.days ?? []} barSize={16}>
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(d: string) => {
+                      const dt = new Date(d + "T00:00:00");
+                      return `${dt.getMonth() + 1}/${dt.getDate()}`;
+                    }}
+                    tick={{ fontSize: 10, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
+                    itemStyle={{ color: "#e2e8f0" }}
+                    labelFormatter={(d: string) => {
+                      const dt = new Date(d + "T00:00:00");
+                      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                    }}
+                  />
+                  <Bar dataKey="count" name="Checks" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {/* Export rows */}
         <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] overflow-hidden divide-y divide-[#1a2540]">

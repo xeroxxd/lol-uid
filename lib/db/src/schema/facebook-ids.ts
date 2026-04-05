@@ -12,6 +12,7 @@ export const facebookIdsTable = pgTable("facebook_ids", {
   visited: boolean("visited").notNull().default(false),
   note: varchar("note", { length: 1000 }),
   tag: varchar("tag", { length: 50 }),
+  visitedAt: timestamp("visited_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

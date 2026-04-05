@@ -118,6 +118,8 @@ export const ListFacebookIdsResponse = zod.object({
       password: zod.string().nullable(),
       pinned: zod.boolean(),
       visited: zod.boolean(),
+      note: zod.string().nullable().optional(),
+      tag: zod.string().nullable().optional(),
       createdAt: zod.coerce.date(),
     }),
   ),
