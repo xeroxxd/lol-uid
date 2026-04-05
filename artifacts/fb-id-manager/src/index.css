@@ -199,6 +199,32 @@
 }
 :root[data-fb-theme="light"] .fb-divider { border-color: #d1d9e6 !important; }
 
+/* ── Light theme: Tailwind text/bg class overrides ── */
+:root[data-fb-theme="light"] .text-white  { color: #0f172a !important; }
+:root[data-fb-theme="light"] .text-slate-100 { color: #1e293b !important; }
+:root[data-fb-theme="light"] .text-slate-200 { color: #334155 !important; }
+:root[data-fb-theme="light"] .text-slate-300 { color: #475569 !important; }
+:root[data-fb-theme="light"] .text-slate-400 { color: #64748b !important; }
+:root[data-fb-theme="light"] .text-slate-500 { color: #64748b !important; }
+:root[data-fb-theme="light"] .text-slate-600 { color: #94a3b8 !important; }
+:root[data-fb-theme="light"] .placeholder-slate-600::placeholder { color: #94a3b8 !important; }
+:root[data-fb-theme="light"] .bg-slate-700\/40 { background-color: #e2e8f0 !important; }
+:root[data-fb-theme="light"] .bg-slate-700\/50 { background-color: #e2e8f0 !important; }
+:root[data-fb-theme="light"] .bg-slate-800\/60 { background-color: #e2e8f0 !important; }
+:root[data-fb-theme="light"] .bg-slate-900\/95 { background-color: rgba(255,255,255,0.97) !important; }
+:root[data-fb-theme="light"] .bg-slate-900\/80 { background-color: rgba(241,245,249,0.97) !important; }
+
+/* ── Light theme: background overrides for hardcoded hex classes ── */
+:root[data-fb-theme="light"] .bg-\[#070b16\] { background-color: #f0f4f8 !important; }
+:root[data-fb-theme="light"] .bg-\[#0c1122\] { background-color: #ffffff !important; }
+:root[data-fb-theme="light"] .bg-\[#0d1a2e\] { background-color: #dde4f0 !important; }
+:root[data-fb-theme="light"] .bg-\[#0b1a10\] { background-color: #f0fdf4 !important; }
+:root[data-fb-theme="light"] .bg-\[#0a1020\] { background-color: #f8fafc !important; }
+:root[data-fb-theme="light"] .bg-\[#1a2540\] { background-color: #e2e8f0 !important; }
+:root[data-fb-theme="light"] .bg-\[#243050\] { background-color: #d1d9e6 !important; }
+:root[data-fb-theme="light"] .border-\[#1a2540\] { border-color: #d1d9e6 !important; }
+:root[data-fb-theme="light"] .divide-\[#1a2540\] > * + * { border-color: #d1d9e6 !important; }
+
 @layer base {
   * {
     @apply border-border;

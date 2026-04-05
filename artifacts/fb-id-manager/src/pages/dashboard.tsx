@@ -22,6 +22,7 @@ import {
   ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
   FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
   Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon, Save,
+  BookmarkCheck, CheckCircle,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
@@ -860,14 +861,24 @@ export default function Dashboard() {
                     else if (dx < -30) setSwipedId(null);
                   }}>
                   {swipedId === item.id && (
-                    <div className="absolute inset-0 bg-red-900/90 flex items-center justify-center z-10">
-                      <button onClick={() => deleteWithUndo(item)}
-                        className="flex flex-col items-center gap-1 text-red-200">
-                        <Trash2 className="h-5 w-5" />
-                        <span className="text-[10px] font-bold">Delete</span>
+                    <div className="absolute inset-0 bg-slate-900/95 flex items-center justify-evenly z-10">
+                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
+                        className="flex flex-col items-center gap-0.5 text-green-300 active:scale-90">
+                        <BookmarkCheck className="h-4 w-4" />
+                        <span className="text-[9px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
                       </button>
-                      <button onClick={() => setSwipedId(null)} className="absolute top-1 right-1 text-red-400">
-                        <X className="h-4 w-4" />
+                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
+                        className="flex flex-col items-center gap-0.5 text-cyan-300 active:scale-90">
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="text-[9px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
+                      </button>
+                      <button onClick={() => { deleteWithUndo(item); setSwipedId(null); }}
+                        className="flex flex-col items-center gap-0.5 text-red-300 active:scale-90">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="text-[9px] font-bold">Delete</span>
+                      </button>
+                      <button onClick={() => setSwipedId(null)} className="absolute top-1 right-1 text-slate-400">
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   )}
@@ -890,10 +901,15 @@ export default function Dashboard() {
                       <span className="text-[10px] font-mono text-yellow-400/70 truncate">{item.password}</span>
                     </div>
                   )}
-                  <div className="flex gap-1 mt-1.5 flex-wrap">
+                  <div className="flex gap-1 mt-1.5 flex-wrap items-center">
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                      onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                      onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
                       className="text-[9px] bg-blue-900/40 text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded">🔗</a>
+                    {(visitCounts.get(item.uid) ?? 0) > 0 && (
+                      <span className="text-[8px] bg-violet-600/40 text-violet-300 px-1 py-0.5 rounded font-bold leading-none">
+                        {visitCounts.get(item.uid)}×
+                      </span>
+                    )}
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { visited: !item.visited } })}
                       className={`text-[9px] px-1.5 py-0.5 rounded ${item.visited ? "bg-emerald-700/50 text-emerald-300" : "bg-slate-700/40 text-slate-400"}`}>
                       {item.visited ? "✅" : "○"}
