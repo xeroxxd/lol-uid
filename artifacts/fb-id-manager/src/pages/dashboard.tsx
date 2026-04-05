@@ -1,6 +1,7 @@
 import { useAuth } from "@workspace/replit-auth-web";
 import { useLocation } from "wouter";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   useListFacebookIds,
   useBulkImportFacebookIds,
@@ -20,7 +21,7 @@ import {
   Zap, Trash2, LogOut, Plus, Search, Copy, Download,
   ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
   FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
-  Settings, List, Grid3x3, Type, Undo2, Smartphone,
+  Settings, List, Grid3x3, Type, Undo2,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
@@ -87,6 +88,8 @@ export default function Dashboard() {
   const [swipedId, setSwipedId] = useState<number | null>(null);
   const touchStartX = useRef<number>(0);
   const listBottomRef = useRef<HTMLDivElement>(null);
+  const analyticsRef = useRef<HTMLDivElement>(null);
+  const [activeNav, setActiveNav] = useState<"home" | "search" | "import" | "analytics" | "settings">("home");
 
   const { data: idsData, isLoading: idsLoading } = useListFacebookIds({
     query: { queryKey: getListFacebookIdsQueryKey() },
@@ -473,6 +476,7 @@ export default function Dashboard() {
 
         {/* Analytics toggle */}
         <button
+          ref={analyticsRef as React.RefObject<HTMLButtonElement>}
           onClick={() => {
             const next = !showCharts;
             setShowCharts(next);
@@ -858,6 +862,75 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Magic Bottom Navigation */}
+      {(() => {
+        const navItems = [
+          { key: "home" as const, icon: <Shield className="h-5 w-5" />, label: "Home" },
+          { key: "search" as const, icon: <Search className="h-5 w-5" />, label: "Search" },
+          { key: "import" as const, icon: <Plus className="h-5 w-5" />, label: "Import" },
+          { key: "analytics" as const, icon: <BarChart2 className="h-5 w-5" />, label: "Charts" },
+          { key: "settings" as const, icon: <Settings className="h-5 w-5" />, label: "Config" },
+        ] as const;
+        const activeIdx = navItems.findIndex((n) => n.key === activeNav);
+        return (
+          <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-2 px-3 pointer-events-none">
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 30 }}
+              className="pointer-events-auto bg-[#0c1122]/95 backdrop-blur-md border border-[#1a2540] rounded-2xl px-2 py-1.5 flex items-center gap-0.5 relative shadow-2xl shadow-black/60"
+              style={{ maxWidth: 320, width: "100%" }}
+            >
+              {/* Animated pill indicator */}
+              <motion.div
+                className="absolute top-1.5 bottom-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30"
+                animate={{ left: `calc(${activeIdx} * 20% + 8px)`, width: "calc(20% - 4px)" }}
+                transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              />
+              {navItems.map(({ key, icon, label }) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setActiveNav(key);
+                    if (key === "home") {
+                      topRef.current?.scrollIntoView({ behavior: "smooth" });
+                    } else if (key === "search") {
+                      setShowSearch((v) => !v);
+                      setShowSort(false); setShowCopyFmt(false); setShowSettings(false);
+                    } else if (key === "import") {
+                      setShowImport(true);
+                    } else if (key === "analytics") {
+                      const next = !showCharts;
+                      setShowCharts(next);
+                      try { localStorage.setItem("fb_show_charts", String(next)); } catch {}
+                      setTimeout(() => analyticsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                    } else if (key === "settings") {
+                      setShowSettings((v) => !v);
+                      setShowSort(false); setShowSearch(false); setShowCopyFmt(false);
+                    }
+                  }}
+                  className="relative z-10 flex-1 flex flex-col items-center gap-0.5 py-1.5"
+                >
+                  <motion.span
+                    animate={{ color: activeNav === key ? "#06b6d4" : "#64748b" }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {icon}
+                  </motion.span>
+                  <motion.span
+                    className="text-[9px] font-semibold"
+                    animate={{ color: activeNav === key ? "#06b6d4" : "#475569" }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {label}
+                  </motion.span>
+                </button>
+              ))}
+            </motion.div>
+          </div>
+        );
+      })()}
 
       {/* Undo delete bar */}
       {undoItem && (
