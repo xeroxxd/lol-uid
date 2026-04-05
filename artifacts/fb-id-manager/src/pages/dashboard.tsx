@@ -248,7 +248,7 @@ export default function Dashboard() {
       });
       if (res.ok) {
         const data: ProfileData = await res.json();
-        if (data.name || data.username || data.followerCount || data.photoUrl) {
+        if (data.name || data.username || data.followerCount || data.instagramUsername) {
           setProfileData((prev) => new Map(prev).set(uid, data));
           setFailedUids((prev) => { const next = new Set(prev); next.delete(uid); return next; });
         } else {
@@ -1096,10 +1096,8 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-900/20 border-b border-blue-500/20 text-[11px]">
                           <ProfileAvatar profile={profile} uid={item.uid} size={28} />
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
-                            {profile.name ? (
-                              <span className="text-blue-200 font-semibold truncate max-w-[120px]">{profile.name}</span>
-                            ) : (
-                              <span className="text-slate-500 italic">Name N/A</span>
+                            {profile.name && (
+                              <span className="text-blue-200 font-semibold truncate max-w-[140px]">{profile.name}</span>
                             )}
                             {profile.username && profile.username !== "profile.php" && (
                               <span className="text-cyan-400/80">@{profile.username}</span>
