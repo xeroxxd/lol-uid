@@ -74,7 +74,7 @@ function ProfileAvatar({ profile, uid, size = 28 }: { profile: ProfileData; uid:
 
 type ValidatorStatus = "idle" | "running" | "done" | "aborted";
 type VResult = { uid: string; name: string | null; username: string | null; followerCount: string | null; photoUrl: string | null; instagramUsername: string | null };
-type FeedEntry = { uid: string; status: "live" | "dead"; name?: string | null };
+type FeedEntry = { uid: string; status: "live" | "dead"; name?: string | null; username?: string | null; followerCount?: string | null; photoUrl?: string | null };
 
 function ValidatorAvatar({ uid, name, photoUrl }: { uid: string; name: string | null; photoUrl: string | null }) {
   const [err, setErr] = useState(false);
@@ -145,7 +145,14 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead }: { onClose: () =
               setTimeout(() => setIsRateLimited(false), ((evt.retryAfter as number) ?? 30) * 1000 + 1000);
             } else if (evt.uid) {
               setProgress(evt.progress as number);
-              const entry: FeedEntry = { uid: evt.uid as string, status: evt.status as "live" | "dead", name: (evt.name as string | null) ?? null };
+              const entry: FeedEntry = {
+                uid: evt.uid as string,
+                status: evt.status as "live" | "dead",
+                name: (evt.name as string | null) ?? null,
+                username: (evt.username as string | null) ?? null,
+                followerCount: (evt.followerCount as string | null) ?? null,
+                photoUrl: (evt.photoUrl as string | null) ?? null,
+              };
               setFeed((prev) => [entry, ...prev].slice(0, 50));
               if (evt.status === "live") {
                 setLiveResults((prev) => [...prev, {
@@ -241,11 +248,25 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead }: { onClose: () =
               <div className="text-[10px] text-slate-500 uppercase tracking-wider px-0.5 mb-1.5">Live Results Feed</div>
               <div className="flex flex-col gap-1 max-h-[55vh] overflow-y-auto">
                 {feed.map((entry, i) => (
-                  <div key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${entry.status === "live" ? "bg-green-900/20 border border-green-500/20" : "bg-red-900/10 border border-red-500/10 opacity-60"}`}>
-                    <span className={entry.status === "live" ? "text-green-400" : "text-red-400"}>{entry.status === "live" ? "✅" : "💀"}</span>
-                    <span className={`font-mono truncate flex-1 ${entry.status === "live" ? "text-green-200" : "text-slate-500"}`}>{entry.name ?? entry.uid}</span>
-                    {entry.status === "live" && entry.name && <span className="text-slate-600 text-[10px] font-mono truncate max-w-[80px]">{entry.uid}</span>}
-                  </div>
+                  entry.status === "live" ? (
+                    <div key={i} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 bg-green-900/20 border border-green-500/20">
+                      <ValidatorAvatar uid={entry.uid} name={entry.name ?? null} photoUrl={entry.photoUrl ?? null} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-green-200 text-xs font-semibold truncate">{entry.name ?? entry.uid}</div>
+                        <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                          {entry.username && <span className="text-cyan-400/80">@{entry.username}</span>}
+                          {entry.followerCount && <span className="text-emerald-400">{entry.followerCount}</span>}
+                          {!entry.name && <span className="text-slate-600 font-mono">{entry.uid}</span>}
+                        </div>
+                      </div>
+                      <span className="text-green-400 text-xs shrink-0">✅</span>
+                    </div>
+                  ) : (
+                    <div key={i} className="flex items-center gap-2 rounded-lg px-2.5 py-1 bg-red-900/10 border border-red-500/10 opacity-60">
+                      <span className="text-red-400 text-xs">💀</span>
+                      <span className="font-mono text-xs text-slate-500 truncate flex-1">{entry.uid}</span>
+                    </div>
+                  )
                 ))}
               </div>
             </div>
@@ -955,15 +976,15 @@ export default function Dashboard() {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-5 gap-1.5">
           {[
-            { label: "SEARCH", icon: <Search className="h-3.5 w-3.5" />, action: () => { setShowSearch((v) => !v); setShowSort(false); }, cls: "text-slate-400" },
-            { label: "SAVE ALL", icon: <Download className="h-3.5 w-3.5" />, action: handleSaveAll, cls: "text-slate-400" },
-            { label: "COPY ALL", icon: <Copy className="h-3.5 w-3.5" />, action: handleCopyAll, cls: "text-slate-400" },
-            { label: "SORT", icon: <SortAsc className="h-3.5 w-3.5" />, action: () => { setShowSort((v) => !v); setShowSearch(false); }, cls: "text-slate-400" },
-          ].map(({ label, icon, action, cls }) => (
+            { label: "SEARCH", icon: <Search className="h-3.5 w-3.5" />, action: () => { setShowSearch((v) => !v); setShowSort(false); } },
+            { label: "SAVE ALL", icon: <Download className="h-3.5 w-3.5" />, action: handleSaveAll },
+            { label: "COPY ALL", icon: <Copy className="h-3.5 w-3.5" />, action: handleCopyAll },
+            { label: "SORT", icon: <SortAsc className="h-3.5 w-3.5" />, action: () => { setShowSort((v) => !v); setShowSearch(false); } },
+          ].map(({ label, icon, action }) => (
             <button key={label} onClick={action}
-              className={`flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold ${cls} hover:text-white hover:border-cyan-500/40 transition-colors`}>
+              className="flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold text-slate-400 hover:text-white hover:border-cyan-500/40 transition-colors">
               {icon}{label}
             </button>
           ))}
@@ -973,12 +994,13 @@ export default function Dashboard() {
             className="flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold text-purple-400 hover:text-purple-200 hover:border-purple-500/40 transition-colors">
             <RefreshCw className="h-3.5 w-3.5" />REFETCH
           </button>
-          <button
-            onClick={() => setShowValidator(true)}
-            className="flex flex-col items-center gap-1 bg-green-900/20 border border-green-500/30 rounded-lg py-2 px-1 text-[10px] font-bold text-green-400 hover:text-green-200 hover:border-green-400/50 transition-colors">
-            <Zap className="h-3.5 w-3.5" />VALIDATE
-          </button>
         </div>
+        {/* Validate button — full-width below the 5-column grid */}
+        <button
+          onClick={() => setShowValidator(true)}
+          className="w-full flex items-center justify-center gap-2 bg-green-900/20 border border-green-500/30 hover:border-green-400/50 text-green-400 hover:text-green-200 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
+          <Zap className="h-3.5 w-3.5" /> BULK VALIDATE — LIVE / DEAD CHECK
+        </button>
 
         {/* Analytics toggle */}
         <button
