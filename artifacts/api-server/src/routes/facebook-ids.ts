@@ -108,6 +108,7 @@ router.get("/facebook-ids", async (req: Request, res: Response) => {
       note: item.note ?? null,
       tag: item.tag ?? null,
       createdAt: item.createdAt.toISOString(),
+      visitedAt: item.visitedAt ? item.visitedAt.toISOString() : null,
     })),
   });
 });

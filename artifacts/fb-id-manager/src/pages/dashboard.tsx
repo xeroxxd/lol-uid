@@ -1,6 +1,6 @@
 import { useAuth } from "@workspace/replit-auth-web";
 import { useLocation } from "wouter";
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useListFacebookIds,
@@ -28,9 +28,22 @@ import {
   ResponsiveContainer, Legend,
 } from "recharts";
 
-type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved";
+type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved" | "alpha" | "recent";
 type FilterMode = "all" | "checked" | "unchecked" | "saved" | "noted" | "tagged";
 type CopyFormat = "both" | "uid" | "pass";
+
+function highlightText(text: string, query: string): ReactNode {
+  if (!query.trim()) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-400 text-black rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
 
 const TAG_OPTIONS = [
   { label: "VIP", color: "bg-yellow-500 text-black" },
@@ -213,6 +226,12 @@ export default function Dashboard() {
       case "checked": items.sort((a, b) => (b.visited ? 1 : 0) - (a.visited ? 1 : 0)); break;
       case "unchecked": items.sort((a, b) => (a.visited ? 1 : 0) - (b.visited ? 1 : 0)); break;
       case "saved": items.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)); break;
+      case "alpha": items.sort((a, b) => a.uid.localeCompare(b.uid)); break;
+      case "recent": items.sort((a, b) => {
+        const ta = (a as { visitedAt?: string | null }).visitedAt ? new Date((a as { visitedAt: string }).visitedAt).getTime() : 0;
+        const tb = (b as { visitedAt?: string | null }).visitedAt ? new Date((b as { visitedAt: string }).visitedAt).getTime() : 0;
+        return tb - ta;
+      }); break;
     }
     return items;
   }, [allItems, searchQuery, sortMode, filterMode]);
@@ -373,11 +392,19 @@ export default function Dashboard() {
       {/* Sort panel */}
       {showSort && (
         <div className="bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex flex-wrap gap-1.5">
-          {(["newest", "oldest", "checked", "unchecked", "saved"] as SortMode[]).map((m) => (
-            <button key={m} onClick={() => { setSortMode(m); setShowSort(false); }}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors capitalize
-                ${sortMode === m ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
-              {m}
+          {([
+            { key: "newest", label: "🆕 Newest" },
+            { key: "oldest", label: "📅 Oldest" },
+            { key: "alpha", label: "🔤 A→Z" },
+            { key: "recent", label: "🕐 Last visited" },
+            { key: "checked", label: "✅ Checked first" },
+            { key: "unchecked", label: "⏳ Unchecked first" },
+            { key: "saved", label: "💾 Saved first" },
+          ] as { key: SortMode; label: string }[]).map(({ key, label }) => (
+            <button key={key} onClick={() => { setSortMode(key); setShowSort(false); }}
+              className={`text-xs px-3 py-1 rounded-full border transition-colors
+                ${sortMode === key ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+              {label}
             </button>
           ))}
         </div>
@@ -594,9 +621,13 @@ export default function Dashboard() {
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
           {filterTabs.map(({ key, label, count }) => (
             <button key={key} onClick={() => setFilterMode(key)}
-              className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap
+              className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap flex items-center gap-1
                 ${filterMode === key ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white hover:border-slate-500"}`}>
-              {label} {count > 0 && <span className="opacity-70">{count}</span>}
+              {label}
+              <span className={`text-[10px] font-bold px-1 rounded-full min-w-[16px] text-center
+                ${filterMode === key ? "bg-[#070b16]/30 text-[#070b16]" : "bg-[#1a2540] text-slate-300"}`}>
+                {count}
+              </span>
             </button>
           ))}
         </div>
@@ -666,12 +697,12 @@ export default function Dashboard() {
                     {item.tag && <span className={`text-[8px] font-bold px-1 rounded ${tagColor(item.tag)}`}>{item.tag}</span>}
                     {item.pinned && <span className="text-[9px] text-green-400">💾</span>}
                   </div>
-                  <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                    onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
-                    className={`font-mono block truncate transition-colors hover:text-cyan-300 ${fontClass(fontSize)}
+                  <button
+                    onClick={() => copy(formatText(item.uid, item.password), "Copied!")}
+                    className={`font-mono block truncate text-left w-full transition-colors active:opacity-60 ${fontClass(fontSize)}
                       ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
-                    {item.uid}
-                  </a>
+                    {highlightText(item.uid, searchQuery)}
+                  </button>
                   {item.password && (
                     <div className="flex items-center gap-0.5 mt-0.5">
                       <Key className="h-2 w-2 text-yellow-400 shrink-0" />
@@ -679,8 +710,9 @@ export default function Dashboard() {
                     </div>
                   )}
                   <div className="flex gap-1 mt-1.5 flex-wrap">
-                    <button onClick={() => copy(item.uid, "UID copied")}
-                      className="text-[9px] bg-slate-700/40 text-slate-400 hover:text-white px-1.5 py-0.5 rounded">UID</button>
+                    <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
+                      onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                      className="text-[9px] bg-blue-900/40 text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded">🔗</a>
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { visited: !item.visited } })}
                       className={`text-[9px] px-1.5 py-0.5 rounded ${item.visited ? "bg-emerald-700/50 text-emerald-300" : "bg-slate-700/40 text-slate-400"}`}>
                       {item.visited ? "✅" : "○"}
@@ -737,16 +769,27 @@ export default function Dashboard() {
                     className="accent-cyan-500 mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span className="text-[10px] text-slate-600 mt-0.5 shrink-0 w-4 text-right">{idx + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                      onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
-                      className={`font-mono ${fontClass(fontSize)} block truncate transition-colors hover:text-cyan-300
-                        ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
-                      {item.uid}
-                    </a>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => copy(formatText(item.uid, item.password), "Copied!")}
+                        className={`font-mono ${fontClass(fontSize)} block truncate text-left flex-1 active:opacity-60 transition-colors
+                          ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
+                        {highlightText(item.uid, searchQuery)}
+                      </button>
+                      <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
+                        onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                        className="shrink-0 text-blue-500 hover:text-blue-300 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      </a>
+                    </div>
                     {item.password && (
                       <div className="flex items-center gap-1 mt-0.5">
                         <Key className="h-2.5 w-2.5 text-yellow-400 shrink-0" />
-                        <span className={`${fontClass(fontSize)} font-mono text-yellow-400/80 truncate`}>{item.password}</span>
+                        <button
+                          onClick={() => copy(`${item.uid}|${item.password}`, "UID|Pass copied!")}
+                          className={`${fontClass(fontSize)} font-mono text-yellow-400/80 truncate active:opacity-60`}>
+                          {item.password}
+                        </button>
                       </div>
                     )}
                     {item.note && editingNote !== item.id && (
