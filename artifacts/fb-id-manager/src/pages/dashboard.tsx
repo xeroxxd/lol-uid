@@ -1091,7 +1091,7 @@ export default function Dashboard() {
                         className="overflow-hidden">
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-900/20 border-b border-blue-500/20 text-[11px]">
                           <ProfileAvatar profile={profile} uid={item.uid} size={28} />
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0 flex-1">
                             {profile.name ? (
                               <span className="text-blue-200 font-semibold truncate max-w-[120px]">{profile.name}</span>
                             ) : (
