@@ -250,7 +250,7 @@ export default function Dashboard() {
       .then((r) => r.json())
       .then((d) => setExtendedDays(d.days ?? []))
       .catch(() => {});
-  }, [showCharts, chartPeriod]);
+  }, [showCharts, chartPeriod, idsData]);
 
   const allItems = idsData?.items ?? [];
 
@@ -579,7 +579,11 @@ export default function Dashboard() {
         {/* Charts panel */}
         {showCharts && (() => {
           const tagColors = ["#f59e0b", "#ef4444", "#3b82f6", "#22c55e", "#64748b", "#8b5cf6", "#06b6d4", "#f97316"];
-          const sortedTags = [...tagStats].sort((a, b) => b.count - a.count);
+          const FIXED_TAG_BUCKETS = ["VIP", "Hot", "New", "Done", "Skip", "Untagged"];
+          const tagMap = new Map(tagStats.map((t) => [t.tag, t.count]));
+          const normalizedTags = FIXED_TAG_BUCKETS.map((t) => ({ tag: t, count: tagMap.get(t) ?? 0 }));
+          const hasAnyTag = normalizedTags.some((t) => t.count > 0);
+          const sortedTags = hasAnyTag ? normalizedTags.sort((a, b) => b.count - a.count) : [];
           const chartDays = chartPeriod === "30d" ? extendedDays : (dailyData?.days ?? []);
           const barSize = chartPeriod === "30d" ? 6 : 16;
           return (
@@ -589,7 +593,7 @@ export default function Dashboard() {
               {profileData.size > 0 && (
                 <div className="flex items-center gap-2 bg-purple-900/20 border border-purple-500/20 rounded-lg px-3 py-2">
                   <User className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                  <span className="text-[11px] text-purple-300 font-semibold">{profileData.size} profile{profileData.size !== 1 ? "s" : ""} fetched this session</span>
+                  <span className="text-[11px] text-purple-300 font-semibold">{profileData.size} profile{profileData.size !== 1 ? "s" : ""} with info fetched this session</span>
                 </div>
               )}
 
