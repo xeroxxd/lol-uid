@@ -380,8 +380,8 @@ export default function Dashboard() {
     const visible = filteredItems.slice(0, visibleCount);
     const pending = visible.filter((item) => !fetchedUids.current.has(item.uid));
     if (pending.length === 0) return;
-    const BATCH = 3;
-    const DELAY = 600;
+    const BATCH = 2;
+    const DELAY = 800;
     const timers: ReturnType<typeof setTimeout>[] = [];
     pending.forEach((item, idx) => {
       const batchDelay = Math.floor(idx / BATCH) * DELAY;

@@ -33,43 +33,43 @@ interface FetchResult {
   rateLimited: boolean;
 }
 
+async function tryUrl(url: string): Promise<{ html: string | null; rateLimited: boolean }> {
+  try {
+    const res = await fetch(url, {
+      headers: HEADERS,
+      redirect: "follow",
+      signal: AbortSignal.timeout(9_000),
+    });
+    if (res.status === 429) return { html: null, rateLimited: true };
+    if (!res.ok) return { html: null, rateLimited: false };
+    const text = await res.text();
+    if (text.length < 500) return { html: null, rateLimited: false };
+    return { html: text, rateLimited: false };
+  } catch {
+    return { html: null, rateLimited: false };
+  }
+}
+
 async function fetchFbPage(uid: string): Promise<FetchResult> {
   if (IN_FLIGHT.has(uid)) return IN_FLIGHT.get(uid)!;
 
   const doFetch = async (): Promise<FetchResult> => {
     const isNumeric = /^\d+$/.test(uid);
-    const urls = isNumeric
-      ? [
-          `https://www.facebook.com/profile.php?id=${uid}`,
-          `https://www.facebook.com/${uid}`,
-        ]
-      : [
-          `https://www.facebook.com/${uid}`,
-          `https://www.facebook.com/profile.php?id=${uid}`,
-        ];
 
-    let rateLimited = false;
+    // Try the best URL first (one request, not two)
+    const primaryUrl = isNumeric
+      ? `https://www.facebook.com/profile.php?id=${uid}`
+      : `https://www.facebook.com/${uid}`;
+    const r1 = await tryUrl(primaryUrl);
+    if (r1.html) return { html: r1.html, rateLimited: false };
+    if (r1.rateLimited) return { html: null, rateLimited: true };
 
-    const results = await Promise.allSettled(
-      urls.map(async (url) => {
-        const res = await fetch(url, {
-          headers: HEADERS,
-          redirect: "follow",
-          signal: AbortSignal.timeout(7_000),
-        });
-        if (res.status === 429) throw Object.assign(new Error("rate_limited"), { rateLimited: true });
-        if (!res.ok) throw new Error("not_ok");
-        const text = await res.text();
-        if (text.length < 500) throw new Error("too_short");
-        return text;
-      })
-    );
-
-    for (const r of results) {
-      if (r.status === "fulfilled") return { html: r.value, rateLimited: false };
-      if ((r.reason as { rateLimited?: boolean })?.rateLimited) rateLimited = true;
-    }
-    return { html: null, rateLimited };
+    // Only try fallback if primary failed
+    const fallbackUrl = isNumeric
+      ? `https://www.facebook.com/${uid}`
+      : `https://www.facebook.com/profile.php?id=${uid}`;
+    const r2 = await tryUrl(fallbackUrl);
+    return { html: r2.html, rateLimited: r2.rateLimited };
   };
 
   const promise = doFetch().finally(() => IN_FLIGHT.delete(uid));
