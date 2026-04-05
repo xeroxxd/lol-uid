@@ -110,7 +110,7 @@ export default function Dashboard() {
   const touchStartX = useRef<number>(0);
   const listBottomRef = useRef<HTMLDivElement>(null);
   const [profileData, setProfileData] = useState<Map<string, ProfileData>>(new Map());
-  const [loadingProfiles, setLoadingProfiles] = useState<Set<string>>(new Set());
+  const fetchedUids = useRef<Set<string>>(new Set());
   const analyticsRef = useRef<HTMLDivElement>(null);
   const [activeNav, setActiveNav] = useState<"home" | "search" | "import" | "analytics" | "settings">("home");
 
@@ -190,28 +190,22 @@ export default function Dashboard() {
   });
 
   const fetchProfile = useCallback(async (uid: string) => {
-    if (profileData.has(uid) || loadingProfiles.has(uid)) return;
-    setLoadingProfiles((prev) => new Set(prev).add(uid));
+    if (fetchedUids.current.has(uid)) return;
+    fetchedUids.current.add(uid);
     try {
       const res = await fetch(`/api/profile-lookup?uid=${encodeURIComponent(uid)}`, {
         credentials: "include",
       });
       if (res.ok) {
         const data: ProfileData = await res.json();
-        setProfileData((prev) => new Map(prev).set(uid, data));
-      } else {
-        setProfileData((prev) => new Map(prev).set(uid, {
-          name: null, username: null, userId: uid, followerCount: null, nationality: null,
-        }));
+        if (data.name || data.username || data.followerCount) {
+          setProfileData((prev) => new Map(prev).set(uid, data));
+        }
       }
     } catch {
-      setProfileData((prev) => new Map(prev).set(uid, {
-        name: null, username: null, userId: uid, followerCount: null, nationality: null,
-      }));
-    } finally {
-      setLoadingProfiles((prev) => { const s = new Set(prev); s.delete(uid); return s; });
+      // silent fail — no bar shown
     }
-  }, [profileData, loadingProfiles]);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation("/login");
@@ -269,6 +263,19 @@ export default function Dashboard() {
     }
     return items;
   }, [allItems, searchQuery, sortMode, filterMode]);
+
+  useEffect(() => {
+    if (idsLoading) return;
+    const visible = filteredItems.slice(0, visibleCount);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    visible.forEach((item, idx) => {
+      if (!fetchedUids.current.has(item.uid)) {
+        const t = setTimeout(() => fetchProfile(item.uid), idx * 250);
+        timers.push(t);
+      }
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [filteredItems, visibleCount, idsLoading, fetchProfile]);
 
   const total = statsData?.total ?? 0;
   const checked = statsData?.visited ?? 0;
@@ -765,7 +772,6 @@ export default function Dashboard() {
             /* Full list mode */
             filteredItems.slice(0, visibleCount).map((item, idx) => {
               const profile = profileData.get(item.uid);
-              const isLoadingProfile = loadingProfiles.has(item.uid);
               return (
                 <div key={item.id}
                   className={`rounded-xl border transition-all duration-150 overflow-hidden relative
@@ -963,18 +969,6 @@ export default function Dashboard() {
                       className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-0.5
                         ${item.tag ? "bg-orange-700/50 text-orange-200" : "bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-orange-300"}`}>
                       <Tag className="h-3 w-3" />Tag
-                    </button>
-                    <button
-                      onClick={() => fetchProfile(item.uid)}
-                      disabled={isLoadingProfile}
-                      className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-0.5
-                        ${profile ? "bg-purple-700/50 text-purple-200" : "bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-purple-300"}
-                        ${isLoadingProfile ? "opacity-60 cursor-not-allowed" : ""}`}>
-                      {isLoadingProfile
-                        ? <Loader2 className="h-3 w-3 animate-spin" />
-                        : <User className="h-3 w-3" />
-                      }
-                      Info
                     </button>
                   </div>
                 </div>
