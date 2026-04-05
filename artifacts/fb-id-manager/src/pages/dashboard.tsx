@@ -1,6 +1,6 @@
 import { useAuth } from "@workspace/replit-auth-web";
 import { useLocation } from "wouter";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   useListFacebookIds,
   useBulkImportFacebookIds,
@@ -20,6 +20,7 @@ import {
   Zap, Trash2, LogOut, Plus, Search, Copy, Download,
   ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
   FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
+  Settings, List, Grid3x3, Type, Undo2, Smartphone,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
@@ -41,6 +42,12 @@ const TAG_OPTIONS = [
 function tagColor(tag: string | null): string {
   const found = TAG_OPTIONS.find((t) => t.label === tag);
   return found ? found.color : "bg-purple-600 text-white";
+}
+
+function fontClass(size: "sm" | "base" | "lg"): string {
+  if (size === "base") return "text-base";
+  if (size === "lg") return "text-lg";
+  return "text-sm";
 }
 
 export default function Dashboard() {
@@ -67,6 +74,19 @@ export default function Dashboard() {
   const [showCharts, setShowCharts] = useState(() => {
     try { return localStorage.getItem("fb_show_charts") === "true"; } catch { return false; }
   });
+  const [showSettings, setShowSettings] = useState(false);
+  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">(() => {
+    try { return (localStorage.getItem("fb_font_size") as "sm" | "base" | "lg") ?? "sm"; } catch { return "sm"; }
+  });
+  const [viewMode, setViewMode] = useState<"list" | "compact">(() => {
+    try { return (localStorage.getItem("fb_view_mode") as "list" | "compact") ?? "list"; } catch { return "list"; }
+  });
+  const [visibleCount, setVisibleCount] = useState(50);
+  const [undoItem, setUndoItem] = useState<{ id: number; uid: string; password: string | null; pinned: boolean; visited: boolean; note: string | null; tag: string | null } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [swipedId, setSwipedId] = useState<number | null>(null);
+  const touchStartX = useRef<number>(0);
+  const listBottomRef = useRef<HTMLDivElement>(null);
 
   const { data: idsData, isLoading: idsLoading } = useListFacebookIds({
     query: { queryKey: getListFacebookIdsQueryKey() },
@@ -99,6 +119,30 @@ export default function Dashboard() {
     },
   });
 
+  const importMutationForUndo = useBulkImportFacebookIds({ mutation: {} });
+
+  const deleteWithUndo = useCallback((item: { id: number; uid: string; password: string | null; pinned: boolean; visited: boolean; note: string | null; tag: string | null }) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoItem(item);
+    deleteMutation.mutate({ id: item.id });
+    setSwipedId(null);
+    undoTimerRef.current = setTimeout(() => setUndoItem(null), 6000);
+  }, [deleteMutation]);
+
+  const handleUndo = useCallback(() => {
+    if (!undoItem) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    const line = undoItem.password ? `${undoItem.uid}|${undoItem.password}` : undoItem.uid;
+    importMutationForUndo.mutate({ data: { rawText: line } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
+        toast({ description: "↩️ Restored!" });
+      },
+    });
+    setUndoItem(null);
+  }, [undoItem, importMutationForUndo, queryClient, toast]);
+
   const updateMutation = useUpdateFacebookId({
     mutation: {
       onSuccess: () => {
@@ -122,6 +166,27 @@ export default function Dashboard() {
   useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation("/login");
   }, [authLoading, isAuthenticated, setLocation]);
+
+  useEffect(() => {
+    setVisibleCount(50);
+  }, [filterMode, sortMode, searchQuery]);
+
+  useEffect(() => {
+    const el = listBottomRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setVisibleCount((v) => v + 50);
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); };
+  }, []);
 
   const allItems = idsData?.items ?? [];
 
@@ -258,9 +323,13 @@ export default function Dashboard() {
             className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Search">
             <Search className="h-4 w-4" />
           </button>
-          <button onClick={() => { setShowSort((v) => !v); setShowSearch(false); setShowCopyFmt(false); }}
+          <button onClick={() => { setShowSort((v) => !v); setShowSearch(false); setShowCopyFmt(false); setShowSettings(false); }}
             className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Sort">
             <SortAsc className="h-4 w-4" />
+          </button>
+          <button onClick={() => { setShowSettings((v) => !v); setShowSort(false); setShowSearch(false); setShowCopyFmt(false); }}
+            className={`p-1.5 rounded hover:bg-white/10 transition-colors ${showSettings ? "text-cyan-400" : "text-slate-400 hover:text-white"}`} title="Settings">
+            <Settings className="h-4 w-4" />
           </button>
           <button onClick={logout} className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Logout">
             <LogOut className="h-4 w-4" />
@@ -307,6 +376,41 @@ export default function Dashboard() {
               {m}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div className="bg-[#0c1122] border-b border-[#1a2540] px-3 py-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Type className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">Font Size</span>
+            <div className="flex gap-1.5">
+              {(["sm", "base", "lg"] as const).map((s) => (
+                <button key={s} onClick={() => { setFontSize(s); try { localStorage.setItem("fb_font_size", s); } catch {} }}
+                  className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors
+                    ${fontSize === s ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                  {s === "sm" ? "S" : s === "base" ? "M" : "L"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <List className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">View</span>
+            <div className="flex gap-1.5">
+              <button onClick={() => { setViewMode("list"); try { localStorage.setItem("fb_view_mode", "list"); } catch {} }}
+                className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
+                  ${viewMode === "list" ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                <List className="h-3 w-3" /> Full
+              </button>
+              <button onClick={() => { setViewMode("compact"); try { localStorage.setItem("fb_view_mode", "compact"); } catch {} }}
+                className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
+                  ${viewMode === "compact" ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                <Grid3x3 className="h-3 w-3" /> Compact
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -514,7 +618,7 @@ export default function Dashboard() {
         </div>
 
         {/* ID List */}
-        <div className="flex flex-col gap-2 pb-24">
+        <div className="flex flex-col gap-2 pb-32">
           {idsLoading ? (
             <div className="flex flex-col items-center py-12 text-slate-600 gap-2">
               <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />Loading...
@@ -524,12 +628,96 @@ export default function Dashboard() {
               <Shield className="h-10 w-10 opacity-15" />
               <p className="text-sm">{searchQuery || filterMode !== "all" ? "No matches." : "No IDs yet. Tap + New to import."}</p>
             </div>
+          ) : viewMode === "compact" ? (
+            /* Compact mode: 2-column dense grid */
+            <div className="grid grid-cols-2 gap-1.5">
+              {filteredItems.slice(0, visibleCount).map((item, idx) => (
+                <div key={item.id}
+                  className={`rounded-lg border p-2 transition-all duration-150 relative overflow-hidden
+                    ${item.pinned ? "border-green-500/30 bg-[#0b1a10]" : "border-[#1a2540] bg-[#0c1122]"}
+                    ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}
+                  onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+                  onTouchEnd={(e) => {
+                    const dx = touchStartX.current - e.changedTouches[0].clientX;
+                    if (dx > 60) setSwipedId(swipedId === item.id ? null : item.id);
+                    else if (dx < -30) setSwipedId(null);
+                  }}>
+                  {swipedId === item.id && (
+                    <div className="absolute inset-0 bg-red-900/90 flex items-center justify-center z-10">
+                      <button onClick={() => deleteWithUndo(item)}
+                        className="flex flex-col items-center gap-1 text-red-200">
+                        <Trash2 className="h-5 w-5" />
+                        <span className="text-[10px] font-bold">Delete</span>
+                      </button>
+                      <button onClick={() => setSwipedId(null)} className="absolute top-1 right-1 text-red-400">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1 mb-1">
+                    <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
+                      className="accent-cyan-500 h-3 w-3 shrink-0" />
+                    <span className="text-[9px] text-slate-600">{idx + 1}</span>
+                    {item.tag && <span className={`text-[8px] font-bold px-1 rounded ${tagColor(item.tag)}`}>{item.tag}</span>}
+                    {item.pinned && <span className="text-[9px] text-green-400">💾</span>}
+                  </div>
+                  <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
+                    onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                    className={`font-mono block truncate transition-colors hover:text-cyan-300 ${fontClass(fontSize)}
+                      ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
+                    {item.uid}
+                  </a>
+                  {item.password && (
+                    <div className="flex items-center gap-0.5 mt-0.5">
+                      <Key className="h-2 w-2 text-yellow-400 shrink-0" />
+                      <span className="text-[10px] font-mono text-yellow-400/70 truncate">{item.password}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-1 mt-1.5 flex-wrap">
+                    <button onClick={() => copy(item.uid, "UID copied")}
+                      className="text-[9px] bg-slate-700/40 text-slate-400 hover:text-white px-1.5 py-0.5 rounded">UID</button>
+                    <button onClick={() => updateMutation.mutate({ id: item.id, data: { visited: !item.visited } })}
+                      className={`text-[9px] px-1.5 py-0.5 rounded ${item.visited ? "bg-emerald-700/50 text-emerald-300" : "bg-slate-700/40 text-slate-400"}`}>
+                      {item.visited ? "✅" : "○"}
+                    </button>
+                    <button onClick={() => updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } })}
+                      className={`text-[9px] px-1.5 py-0.5 rounded ${item.pinned ? "bg-green-700/50 text-green-300" : "bg-slate-700/40 text-slate-400"}`}>
+                      💾
+                    </button>
+                    <button onClick={() => deleteWithUndo(item)}
+                      className="text-[9px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded">✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            filteredItems.map((item, idx) => (
+            /* Full list mode */
+            filteredItems.slice(0, visibleCount).map((item, idx) => (
               <div key={item.id}
-                className={`rounded-xl border transition-all duration-150 overflow-hidden
+                className={`rounded-xl border transition-all duration-150 overflow-hidden relative
                   ${item.pinned ? "border-green-500/30 bg-[#0b1a10]" : "border-[#1a2540] bg-[#0c1122]"}
-                  ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}>
+                  ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}
+                onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+                onTouchEnd={(e) => {
+                  const dx = touchStartX.current - e.changedTouches[0].clientX;
+                  if (dx > 70) setSwipedId(swipedId === item.id ? null : item.id);
+                  else if (dx < -30) setSwipedId(null);
+                }}>
+
+                {/* Swipe-delete overlay */}
+                {swipedId === item.id && (
+                  <div className="absolute inset-0 bg-red-900/90 flex items-center justify-center z-10 gap-4">
+                    <button onClick={() => deleteWithUndo(item)}
+                      className="flex flex-col items-center gap-1.5 text-red-200 active:scale-95">
+                      <Trash2 className="h-7 w-7" />
+                      <span className="text-xs font-bold">Delete</span>
+                    </button>
+                    <button onClick={() => setSwipedId(null)}
+                      className="absolute top-2 right-2 text-red-400 hover:text-white">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
 
                 {/* Tag bar */}
                 {item.tag && (
@@ -546,14 +734,14 @@ export default function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
                       onClick={() => { if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
-                      className={`font-mono text-sm block truncate transition-colors hover:text-cyan-300
+                      className={`font-mono ${fontClass(fontSize)} block truncate transition-colors hover:text-cyan-300
                         ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
                       {item.uid}
                     </a>
                     {item.password && (
                       <div className="flex items-center gap-1 mt-0.5">
                         <Key className="h-2.5 w-2.5 text-yellow-400 shrink-0" />
-                        <span className="text-[11px] font-mono text-yellow-400/80 truncate">{item.password}</span>
+                        <span className={`${fontClass(fontSize)} font-mono text-yellow-400/80 truncate`}>{item.password}</span>
                       </div>
                     )}
                     {item.note && editingNote !== item.id && (
@@ -653,7 +841,7 @@ export default function Dashboard() {
                       ${item.pinned ? "bg-green-700/60 hover:bg-green-600/70 text-green-100" : "bg-green-900/30 hover:bg-green-800/40 text-green-400"}`}>
                     💾 {item.pinned ? "Saved" : "Save"}
                   </button>
-                  <button onClick={() => deleteMutation.mutate({ id: item.id })}
+                  <button onClick={() => deleteWithUndo(item)}
                     className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg bg-red-900/30 hover:bg-red-800/50 text-red-400 hover:text-red-200 transition-colors flex items-center justify-center gap-1">
                     <X className="h-3 w-3" /> Del
                   </button>
@@ -661,8 +849,31 @@ export default function Dashboard() {
               </div>
             ))
           )}
+          {/* Infinite scroll sentinel */}
+          <div ref={listBottomRef} className="h-2" />
+          {filteredItems.length > visibleCount && (
+            <div className="text-center text-xs text-slate-600 py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-cyan-600 mx-auto" />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Undo delete bar */}
+      {undoItem && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#1a2540] border border-cyan-500/40 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl shadow-black/60 max-w-xs w-[90vw]">
+          <Undo2 className="h-4 w-4 text-cyan-400 shrink-0" />
+          <span className="flex-1 text-xs text-slate-300 truncate">Deleted <span className="font-mono text-white">{undoItem.uid}</span></span>
+          <button onClick={handleUndo}
+            className="text-xs font-bold text-cyan-400 hover:text-cyan-200 transition-colors shrink-0 bg-cyan-500/20 px-2.5 py-1 rounded-lg">
+            Undo
+          </button>
+          <button onClick={() => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); setUndoItem(null); }}
+            className="text-slate-500 hover:text-white shrink-0">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Import Modal */}
       {showImport && (
