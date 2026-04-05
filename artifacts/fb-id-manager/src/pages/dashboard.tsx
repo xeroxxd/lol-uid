@@ -1109,12 +1109,6 @@ export default function Dashboard() {
                               <span className="text-orange-300/70">📍 {profile.nationality}</span>
                             )}
                           </div>
-                          <button
-                            onClick={() => retryProfile(item.uid)}
-                            title="Re-fetch profile"
-                            className="ml-auto shrink-0 text-[9px] text-slate-500 hover:text-cyan-300 flex items-center gap-0.5 transition-colors px-1">
-                            <RotateCcw className="h-2.5 w-2.5" />
-                          </button>
                         </div>
                       </motion.div>
                     )}
