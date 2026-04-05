@@ -175,17 +175,18 @@ export default function Dashboard() {
   }, [filterMode, sortMode, searchQuery]);
 
   useEffect(() => {
+    if (idsLoading) return;
     const el = listBottomRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) setVisibleCount((v) => v + 50);
       },
-      { threshold: 0.1 },
+      { threshold: 0.1, rootMargin: "0px 0px 120px 0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [idsLoading]);
 
   useEffect(() => {
     return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); };
@@ -854,10 +855,16 @@ export default function Dashboard() {
             ))
           )}
           {/* Infinite scroll sentinel */}
-          <div ref={listBottomRef} className="h-2" />
+          <div ref={listBottomRef} className="h-4" />
           {filteredItems.length > visibleCount && (
-            <div className="text-center text-xs text-slate-600 py-2">
-              <Loader2 className="h-4 w-4 animate-spin text-cyan-600 mx-auto" />
+            <div className="flex flex-col items-center gap-2 py-3">
+              <Loader2 className="h-4 w-4 animate-spin text-cyan-600" />
+              <button
+                onClick={() => setVisibleCount((v) => v + 50)}
+                className="text-[11px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-4 py-1.5 rounded-full transition-colors"
+              >
+                আরো দেখুন ({filteredItems.length - visibleCount} বাকি)
+              </button>
             </div>
           )}
         </div>
