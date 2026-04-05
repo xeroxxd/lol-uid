@@ -239,7 +239,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!showCharts) return;
     fetch("/api/facebook-ids/tag-stats", { credentials: "include" })
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => setTagStats(d.tags ?? []))
       .catch(() => {});
   }, [showCharts, idsData]);
@@ -247,7 +247,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!showCharts || chartPeriod !== "30d") return;
     fetch("/api/facebook-ids/daily-stats?days=30", { credentials: "include" })
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => setExtendedDays(d.days ?? []))
       .catch(() => {});
   }, [showCharts, chartPeriod, idsData]);
