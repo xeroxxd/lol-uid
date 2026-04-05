@@ -147,6 +147,24 @@ router.get("/profile-lookup", async (req: Request, res: Response) => {
       photoUrl = ogImage;
     }
 
+    let instagramUsername: string | null = null;
+    const igPatterns = [
+      /instagram\.com\/([a-zA-Z0-9_.]{1,30})\/?(?:["'\s?]|$)/g,
+      /"instagram\.com\/([a-zA-Z0-9_.]{1,30})"/g,
+    ];
+    const igBlacklist = new Set(["p", "reel", "reels", "tv", "stories", "explore", "accounts", "sharedfiles"]);
+    for (const pattern of igPatterns) {
+      let m: RegExpExecArray | null;
+      while ((m = pattern.exec(html)) !== null) {
+        const candidate = m[1].toLowerCase();
+        if (!igBlacklist.has(candidate) && candidate.length > 1) {
+          instagramUsername = m[1];
+          break;
+        }
+      }
+      if (instagramUsername) break;
+    }
+
     const payload = {
       name: name ?? null,
       username: username ?? null,
@@ -154,6 +172,7 @@ router.get("/profile-lookup", async (req: Request, res: Response) => {
       followerCount: followerCount ?? null,
       nationality: nationality ?? null,
       photoUrl: photoUrl ?? null,
+      instagramUsername: instagramUsername ?? null,
     };
     SERVER_CACHE.set(uid, { data: payload, expiresAt: Date.now() + CACHE_TTL_MS });
     res.json(payload);
