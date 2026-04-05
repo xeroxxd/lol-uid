@@ -141,12 +141,19 @@ router.get("/profile-lookup", async (req: Request, res: Response) => {
       }
     }
 
+    let photoUrl: string | null = null;
+    const ogImage = $('meta[property="og:image"]').attr("content") ?? null;
+    if (ogImage && (ogImage.startsWith("https://") || ogImage.startsWith("http://"))) {
+      photoUrl = ogImage;
+    }
+
     const payload = {
       name: name ?? null,
       username: username ?? null,
       userId: userId ?? uid,
       followerCount: followerCount ?? null,
       nationality: nationality ?? null,
+      photoUrl: photoUrl ?? null,
     };
     SERVER_CACHE.set(uid, { data: payload, expiresAt: Date.now() + CACHE_TTL_MS });
     res.json(payload);

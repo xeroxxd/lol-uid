@@ -22,7 +22,7 @@ import {
   ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
   FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
   Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon, Save,
-  BookmarkCheck, CheckCircle,
+  BookmarkCheck, CheckCircle, RefreshCw, RotateCcw,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
@@ -39,6 +39,36 @@ interface ProfileData {
   userId: string | null;
   followerCount: string | null;
   nationality: string | null;
+  photoUrl: string | null;
+}
+
+function ProfileAvatar({ profile, uid, size = 28 }: { profile: ProfileData; uid: string; size?: number }) {
+  const [imgErr, setImgErr] = useState(false);
+  const initials = (profile.name ?? uid).slice(0, 2).toUpperCase();
+  const hue = uid.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+  const gradient = `linear-gradient(135deg, hsl(${hue},70%,40%), hsl(${(hue + 60) % 360},70%,55%))`;
+  const px = `${size}px`;
+  if (profile.photoUrl && !imgErr) {
+    return (
+      <img
+        src={profile.photoUrl}
+        alt={initials}
+        width={size}
+        height={size}
+        onError={() => setImgErr(true)}
+        className="rounded-full object-cover shrink-0 border border-white/10"
+        style={{ width: px, height: px, minWidth: px }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-full shrink-0 flex items-center justify-center text-white font-bold border border-white/10"
+      style={{ width: px, height: px, minWidth: px, background: gradient, fontSize: size * 0.38 }}
+    >
+      {initials}
+    </div>
+  );
 }
 
 function highlightText(text: string, query: string): ReactNode {
@@ -129,6 +159,7 @@ export default function Dashboard() {
   const listBottomRef = useRef<HTMLDivElement>(null);
   const [profileData, setProfileData] = useState<Map<string, ProfileData>>(new Map());
   const fetchedUids = useRef<Set<string>>(new Set());
+  const [failedUids, setFailedUids] = useState<Set<string>>(new Set());
   const analyticsRef = useRef<HTMLDivElement>(null);
   const [activeNav, setActiveNav] = useState<"home" | "search" | "import" | "analytics" | "settings">("home");
 
@@ -216,12 +247,17 @@ export default function Dashboard() {
       });
       if (res.ok) {
         const data: ProfileData = await res.json();
-        if (data.name || data.username || data.followerCount) {
+        if (data.name || data.username || data.followerCount || data.photoUrl) {
           setProfileData((prev) => new Map(prev).set(uid, data));
+          setFailedUids((prev) => { const next = new Set(prev); next.delete(uid); return next; });
+        } else {
+          setFailedUids((prev) => new Set(prev).add(uid));
         }
+      } else {
+        setFailedUids((prev) => new Set(prev).add(uid));
       }
     } catch {
-      // silent fail — no bar shown
+      setFailedUids((prev) => new Set(prev).add(uid));
     }
   }, []);
 
@@ -266,6 +302,22 @@ export default function Dashboard() {
       setVisitCounts((prev) => new Map(prev).set(uid, next));
     } catch {}
   }, []);
+
+  const retryProfile = useCallback((uid: string) => {
+    fetchedUids.current.delete(uid);
+    setFailedUids((prev) => { const next = new Set(prev); next.delete(uid); return next; });
+    fetchProfile(uid);
+  }, [fetchProfile]);
+
+  const handleRefetchAll = useCallback((visibleItems: { uid: string }[]) => {
+    fetchedUids.current.clear();
+    setFailedUids(new Set());
+    setProfileData(new Map());
+    visibleItems.forEach((item, idx) => {
+      setTimeout(() => fetchProfile(item.uid), idx * 300);
+    });
+    toast({ description: "🔄 Re-fetching profiles…" });
+  }, [fetchProfile, toast]);
 
   useEffect(() => {
     if (!showCharts) return;
@@ -601,7 +653,7 @@ export default function Dashboard() {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-1.5">
           {[
             { label: "SEARCH", icon: <Search className="h-3.5 w-3.5" />, action: () => { setShowSearch((v) => !v); setShowSort(false); } },
             { label: "SAVE ALL", icon: <Download className="h-3.5 w-3.5" />, action: handleSaveAll },
@@ -613,6 +665,12 @@ export default function Dashboard() {
               {icon}{label}
             </button>
           ))}
+          <button
+            onClick={() => handleRefetchAll(filteredItems.slice(0, visibleCount))}
+            title="Re-fetch all visible profiles"
+            className="flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold text-purple-400 hover:text-purple-200 hover:border-purple-500/40 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" />REFETCH
+          </button>
         </div>
 
         {/* Analytics toggle */}
@@ -1031,23 +1089,50 @@ export default function Dashboard() {
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-1.5 bg-blue-900/20 border-b border-blue-500/20 text-[11px]">
-                          {profile.name ? (
-                            <span className="text-blue-200 font-semibold truncate max-w-[120px]">{profile.name}</span>
-                          ) : (
-                            <span className="text-slate-500 italic">Name N/A</span>
-                          )}
-                          {profile.username && profile.username !== "profile.php" && (
-                            <span className="text-cyan-400/80">@{profile.username}</span>
-                          )}
-                          {profile.followerCount && (
-                            <span className="text-emerald-400/80 flex items-center gap-0.5">
-                              <User className="h-2.5 w-2.5" />{profile.followerCount}
-                            </span>
-                          )}
-                          {profile.nationality && (
-                            <span className="text-orange-300/70">📍 {profile.nationality}</span>
-                          )}
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-900/20 border-b border-blue-500/20 text-[11px]">
+                          <ProfileAvatar profile={profile} uid={item.uid} size={28} />
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                            {profile.name ? (
+                              <span className="text-blue-200 font-semibold truncate max-w-[120px]">{profile.name}</span>
+                            ) : (
+                              <span className="text-slate-500 italic">Name N/A</span>
+                            )}
+                            {profile.username && profile.username !== "profile.php" && (
+                              <span className="text-cyan-400/80">@{profile.username}</span>
+                            )}
+                            {profile.followerCount && (
+                              <span className="text-emerald-400/80 flex items-center gap-0.5">
+                                <User className="h-2.5 w-2.5" />{profile.followerCount}
+                              </span>
+                            )}
+                            {profile.nationality && (
+                              <span className="text-orange-300/70">📍 {profile.nationality}</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => retryProfile(item.uid)}
+                            title="Re-fetch profile"
+                            className="ml-auto shrink-0 text-[9px] text-slate-500 hover:text-cyan-300 flex items-center gap-0.5 transition-colors px-1">
+                            <RotateCcw className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                    {!profile && failedUids.has(item.uid) && (
+                      <motion.div
+                        key="retry-bar"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/30 border-b border-slate-700/30 text-[10px]">
+                          <span className="text-slate-600 flex-1">Profile unavailable</span>
+                          <button
+                            onClick={() => retryProfile(item.uid)}
+                            className="flex items-center gap-1 text-slate-400 hover:text-cyan-300 transition-colors">
+                            <RotateCcw className="h-2.5 w-2.5" /> Retry
+                          </button>
                         </div>
                       </motion.div>
                     )}
