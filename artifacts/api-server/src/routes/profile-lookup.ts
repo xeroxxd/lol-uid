@@ -15,9 +15,10 @@ const HEADERS = {
 };
 
 const SERVER_CACHE = new Map<string, { data: object; expiresAt: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 30 * 60 * 1000;
 const RATE_LIMIT_UNTIL = new Map<string, number>();
 const RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
+const IN_FLIGHT = new Map<string, Promise<FetchResult>>();
 
 function formatFollowers(raw: string): string {
   const n = parseInt(raw.replace(/,/g, ""), 10);
@@ -33,30 +34,47 @@ interface FetchResult {
 }
 
 async function fetchFbPage(uid: string): Promise<FetchResult> {
-  const urls = [
-    `https://www.facebook.com/profile.php?id=${uid}`,
-    `https://www.facebook.com/${uid}`,
-  ];
+  if (IN_FLIGHT.has(uid)) return IN_FLIGHT.get(uid)!;
 
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        headers: HEADERS,
-        redirect: "follow",
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (res.status === 429) {
-        return { html: null, rateLimited: true };
-      }
-      if (res.ok) {
+  const doFetch = async (): Promise<FetchResult> => {
+    const isNumeric = /^\d+$/.test(uid);
+    const urls = isNumeric
+      ? [
+          `https://www.facebook.com/profile.php?id=${uid}`,
+          `https://www.facebook.com/${uid}`,
+        ]
+      : [
+          `https://www.facebook.com/${uid}`,
+          `https://www.facebook.com/profile.php?id=${uid}`,
+        ];
+
+    let rateLimited = false;
+
+    const results = await Promise.allSettled(
+      urls.map(async (url) => {
+        const res = await fetch(url, {
+          headers: HEADERS,
+          redirect: "follow",
+          signal: AbortSignal.timeout(7_000),
+        });
+        if (res.status === 429) throw Object.assign(new Error("rate_limited"), { rateLimited: true });
+        if (!res.ok) throw new Error("not_ok");
         const text = await res.text();
-        if (text.length > 500) return { html: text, rateLimited: false };
-      }
-    } catch {
-      continue;
+        if (text.length < 500) throw new Error("too_short");
+        return text;
+      })
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled") return { html: r.value, rateLimited: false };
+      if ((r.reason as { rateLimited?: boolean })?.rateLimited) rateLimited = true;
     }
-  }
-  return { html: null, rateLimited: false };
+    return { html: null, rateLimited };
+  };
+
+  const promise = doFetch().finally(() => IN_FLIGHT.delete(uid));
+  IN_FLIGHT.set(uid, promise);
+  return promise;
 }
 
 router.get("/profile-lookup", async (req: Request, res: Response) => {
@@ -97,7 +115,10 @@ router.get("/profile-lookup", async (req: Request, res: Response) => {
 
     const $ = cheerio.load(html);
 
-    const name = $('meta[property="og:title"]').attr("content") ?? null;
+    const rawName = $('meta[property="og:title"]').attr("content") ?? null;
+    const name = rawName
+      ? rawName.replace(/\s*[|\-–—]\s*(?:Facebook|FB).*$/i, "").trim() || null
+      : null;
 
     let username: string | null = null;
     const ogUrl = $('meta[property="og:url"]').attr("content") ?? "";

@@ -378,12 +378,15 @@ export default function Dashboard() {
   useEffect(() => {
     if (idsLoading) return;
     const visible = filteredItems.slice(0, visibleCount);
+    const pending = visible.filter((item) => !fetchedUids.current.has(item.uid));
+    if (pending.length === 0) return;
+    const BATCH = 3;
+    const DELAY = 600;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    visible.forEach((item, idx) => {
-      if (!fetchedUids.current.has(item.uid)) {
-        const t = setTimeout(() => fetchProfile(item.uid), idx * 250);
-        timers.push(t);
-      }
+    pending.forEach((item, idx) => {
+      const batchDelay = Math.floor(idx / BATCH) * DELAY;
+      const t = setTimeout(() => fetchProfile(item.uid), batchDelay);
+      timers.push(t);
     });
     return () => timers.forEach(clearTimeout);
   }, [filteredItems, visibleCount, idsLoading, fetchProfile]);
