@@ -249,7 +249,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-fb-theme", theme);
-    return () => {};
   }, [theme]);
 
   useEffect(() => {
@@ -854,12 +853,32 @@ export default function Dashboard() {
                   className={`rounded-lg border p-2 transition-all duration-150 relative overflow-hidden
                     ${item.pinned ? "fb-card-pinned border-green-500/30 bg-[#0b1a10]" : "fb-card border-[#1a2540] bg-[#0c1122]"}
                     ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}
-                  onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
-                  onTouchEnd={(e) => {
-                    const dx = touchStartX.current - e.changedTouches[0].clientX;
-                    if (dx > 60) setSwipedId(swipedId === item.id ? null : item.id);
-                    else if (dx < -30) setSwipedId(null);
-                  }}>
+                  onPointerDown={(e) => {
+                    if ((e.target as Element).closest("button,a,input")) return;
+                    touchStartX.current = e.clientX;
+                    touchStartY.current = e.clientY;
+                    longPressFired.current = false;
+                    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                    longPressTimer.current = setTimeout(() => {
+                      longPressFired.current = true;
+                      toggleSelect(item.id);
+                      try { navigator.vibrate?.(40); } catch {}
+                    }, 500);
+                  }}
+                  onPointerMove={(e) => {
+                    const dx = Math.abs(e.clientX - touchStartX.current);
+                    const dy = Math.abs(e.clientY - (touchStartY.current ?? e.clientY));
+                    if (dx > 8 || dy > 8) { if (longPressTimer.current) clearTimeout(longPressTimer.current); }
+                  }}
+                  onPointerUp={(e) => {
+                    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                    if (!longPressFired.current) {
+                      const dx = touchStartX.current - e.clientX;
+                      if (dx > 60) setSwipedId(swipedId === item.id ? null : item.id);
+                      else if (dx < -30) setSwipedId(null);
+                    }
+                  }}
+                  onPointerLeave={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}>
                   {swipedId === item.id && (
                     <div className="absolute inset-0 bg-slate-900/95 flex items-center justify-evenly z-10">
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
