@@ -31,12 +31,17 @@ router.post("/validate-bulk", async (req: Request, res: Response) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
+  let cancelled = false;
+  const onClose = () => { cancelled = true; };
+  req.on("close", onClose);
+  res.on("close", onClose);
+
   const keepalive = setInterval(() => {
-    if (!res.writableEnded) res.write(": keepalive\n\n");
+    if (!cancelled && !res.writableEnded && !res.destroyed) res.write(": keepalive\n\n");
   }, 15_000);
 
   const emit = (data: object) => {
-    if (!res.writableEnded) {
+    if (!cancelled && !res.writableEnded && !res.destroyed) {
       res.write(`data: ${JSON.stringify(data)}\n\n`);
     }
   };
@@ -47,13 +52,14 @@ router.post("/validate-bulk", async (req: Request, res: Response) => {
   const CONCURRENCY = 5;
 
   const worker = async () => {
-    while (true) {
-      if (res.writableEnded) break;
+    while (!cancelled) {
+      if (res.writableEnded || res.destroyed) break;
 
       if (rateLimitedUntil > Date.now()) {
         const wait = rateLimitedUntil - Date.now() + 500;
         emit({ event: "rate_limited", retryAfter: Math.ceil(wait / 1000) });
         await sleep(wait);
+        if (cancelled) break;
       }
 
       const uid = queue.shift();
