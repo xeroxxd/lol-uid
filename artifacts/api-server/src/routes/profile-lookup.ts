@@ -14,6 +14,11 @@ const HEADERS = {
   "cache-control": "no-cache",
 };
 
+const SERVER_CACHE = new Map<string, { data: object; expiresAt: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const RATE_LIMIT_UNTIL = new Map<string, number>();
+const RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
+
 function formatFollowers(raw: string): string {
   const n = parseInt(raw.replace(/,/g, ""), 10);
   if (isNaN(n)) return raw;
@@ -22,7 +27,12 @@ function formatFollowers(raw: string): string {
   return String(n);
 }
 
-async function fetchFbPage(uid: string): Promise<string | null> {
+interface FetchResult {
+  html: string | null;
+  rateLimited: boolean;
+}
+
+async function fetchFbPage(uid: string): Promise<FetchResult> {
   const urls = [
     `https://www.facebook.com/profile.php?id=${uid}`,
     `https://www.facebook.com/${uid}`,
@@ -35,15 +45,18 @@ async function fetchFbPage(uid: string): Promise<string | null> {
         redirect: "follow",
         signal: AbortSignal.timeout(10_000),
       });
+      if (res.status === 429) {
+        return { html: null, rateLimited: true };
+      }
       if (res.ok) {
         const text = await res.text();
-        if (text.length > 500) return text;
+        if (text.length > 500) return { html: text, rateLimited: false };
       }
     } catch {
       continue;
     }
   }
-  return null;
+  return { html: null, rateLimited: false };
 }
 
 router.get("/profile-lookup", async (req: Request, res: Response) => {
@@ -58,8 +71,25 @@ router.get("/profile-lookup", async (req: Request, res: Response) => {
     return;
   }
 
+  const cached = SERVER_CACHE.get(uid);
+  if (cached && cached.expiresAt > Date.now()) {
+    res.json(cached.data);
+    return;
+  }
+
+  const rateLimitedUntil = RATE_LIMIT_UNTIL.get("global") ?? 0;
+  if (rateLimitedUntil > Date.now()) {
+    res.status(429).json({ error: "Rate limited by Facebook. Try again in a minute." });
+    return;
+  }
+
   try {
-    const html = await fetchFbPage(uid);
+    const { html, rateLimited } = await fetchFbPage(uid);
+    if (rateLimited) {
+      RATE_LIMIT_UNTIL.set("global", Date.now() + RATE_LIMIT_COOLDOWN_MS);
+      res.status(429).json({ error: "Rate limited by Facebook. Try again in a minute." });
+      return;
+    }
     if (!html) {
       res.status(502).json({ error: "Could not fetch Facebook page" });
       return;
@@ -111,13 +141,15 @@ router.get("/profile-lookup", async (req: Request, res: Response) => {
       }
     }
 
-    res.json({
+    const payload = {
       name: name ?? null,
       username: username ?? null,
       userId: userId ?? uid,
       followerCount: followerCount ?? null,
       nationality: nationality ?? null,
-    });
+    };
+    SERVER_CACHE.set(uid, { data: payload, expiresAt: Date.now() + CACHE_TTL_MS });
+    res.json(payload);
   } catch (err) {
     res.status(500).json({ error: "Lookup failed" });
   }
