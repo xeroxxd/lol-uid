@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Pphqj5xIhwWOgPVtAHdFa"
+uri = "file://fb-id-manager-full.tar.gz"
+type = "unspecified"
+title = "FB ID Manager Pro — Full Source Code (tar.gz)"
