@@ -386,16 +386,18 @@ function LoginCheckerPanel({
   onComplete,
   soundEnabled,
   onPlayChime,
+  defaultProxies,
 }: {
   onClose: () => void;
   prefillPairs?: string;
   onComplete?: (results: LCResult[]) => void;
   soundEnabled?: boolean;
   onPlayChime?: () => void;
+  defaultProxies?: string;
 }) {
   const [inputText, setInputText] = useState(prefillPairs ?? "");
-  const [proxyText, setProxyText] = useState("");
-  const [showProxies, setShowProxies] = useState(false);
+  const [proxyText, setProxyText] = useState(defaultProxies ?? "");
+  const [showProxies, setShowProxies] = useState(() => !!(defaultProxies?.trim()));
   const [workers, setWorkers] = useState(3);
   const [delay, setDelay] = useState(1);
   const [status, setStatus] = useState<LCStatus>("idle");
@@ -896,6 +898,9 @@ export default function Dashboard() {
     try { return JSON.parse(localStorage.getItem("fb_custom_tags") ?? "[]"); } catch { return []; }
   });
   const [newCustomTagInput, setNewCustomTagInput] = useState("");
+  const [globalProxies, setGlobalProxies] = useState<string>(() => {
+    try { return localStorage.getItem("fb_proxies") ?? ""; } catch { return ""; }
+  });
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     try { return localStorage.getItem("fb_sound_enabled") !== "false"; } catch { return true; }
   });
@@ -1172,12 +1177,13 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!allItems.length) return;
+    const items = idsData?.items ?? [];
+    if (!items.length) return;
     const today = new Date().toDateString();
-    const todayCount = allItems.filter((i) => i.visitedAt && new Date(i.visitedAt).toDateString() === today).length;
+    const todayCount = items.filter((i) => i.visitedAt && new Date(i.visitedAt).toDateString() === today).length;
     setCheckedToday(todayCount);
 
-    const dateSets = new Set(allItems.filter((i) => i.visitedAt).map((i) => new Date(i.visitedAt!).toDateString()));
+    const dateSets = new Set(items.filter((i) => i.visitedAt).map((i) => new Date(i.visitedAt!).toDateString()));
     let s = 0;
     const d = new Date();
     while (dateSets.has(d.toDateString())) {
@@ -1189,7 +1195,7 @@ export default function Dashboard() {
       localStorage.setItem("fb_last_active", today);
       if (s > 0) localStorage.setItem("fb_streak_count", String(s));
     } catch {}
-  }, [allItems]);
+  }, [idsData]);
 
   useEffect(() => {
     if (!showCharts) return;
@@ -1610,6 +1616,32 @@ export default function Dashboard() {
               {soundEnabled ? "On" : "Off"}
             </button>
           </div>
+          {/* Global Proxies */}
+          <div className="flex items-start gap-2">
+            <Wifi className="h-3.5 w-3.5 text-slate-500 shrink-0 mt-1" />
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider">Proxies</span>
+                {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length > 0 && (
+                  <span className="text-[9px] text-cyan-400">
+                    {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length} loaded
+                  </span>
+                )}
+              </div>
+              <textarea
+                value={globalProxies}
+                onChange={(e) => {
+                  setGlobalProxies(e.target.value);
+                  try { localStorage.setItem("fb_proxies", e.target.value); } catch {}
+                }}
+                rows={3}
+                placeholder={"http://user:pass@host:port\nsocks5://host:port"}
+                className="w-full bg-[#070b16] border border-[#1a2540] text-slate-300 placeholder-slate-700 text-[10px] font-mono px-2 py-1.5 rounded-lg outline-none focus:border-cyan-500/50 resize-none"
+              />
+              <div className="text-[9px] text-slate-700">Used by Login Checker. One per line.</div>
+            </div>
+          </div>
+
           {/* PWA install */}
           {pwaPrompt && (
             <div className="flex items-center gap-2">
@@ -2809,6 +2841,7 @@ export default function Dashboard() {
           prefillPairs={loginCheckerPrefill}
           soundEnabled={soundEnabled}
           onPlayChime={playChime}
+          defaultProxies={globalProxies}
           onComplete={(results) => {
             results.forEach((r) => {
               const item = allItems.find((i) => i.uid === r.uid);
