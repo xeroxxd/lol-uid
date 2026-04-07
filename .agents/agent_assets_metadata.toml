@@ -12,3 +12,9 @@ id = "MrxfmTIozeY5znKUg8I2h"
 uri = "file://fb-uid-manager-pro.tar.gz"
 type = "unspecified"
 title = "FB UID Manager Pro — Full Source Package"
+
+[[outputs]]
+id = "cRtDOfwKM_n3swL60kMRm"
+uri = "file://fb-uid-manager-AI-STUDIO.txt"
+type = "text"
+title = "FB UID Manager Pro — AI Studio Complete Source"
