@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { ProxyAgent, fetch as undiciFetch } from "undici";
+import { ProxyAgent, fetch as undiciFetch, Agent as UndiciAgent } from "undici";
 
 interface AndroidDevice {
   model: string;
@@ -159,26 +159,19 @@ export async function checkFbLogin(uid: string, password: string, proxyUrl?: str
       "Accept-Language": device.locale.replace("_", "-"),
     };
 
-    let res: Response;
-    if (proxyUrl) {
-      const dispatcher = new ProxyAgent(proxyUrl);
-      res = await undiciFetch("https://graph.facebook.com/auth/login", {
-        method: "POST",
-        headers: fetchHeaders,
-        body: params.toString(),
-        signal: AbortSignal.timeout(15_000),
-        dispatcher,
-      }) as unknown as Response;
-    } else {
-      res = await fetch("https://graph.facebook.com/auth/login", {
-        method: "POST",
-        headers: fetchHeaders,
-        body: params.toString(),
-        signal: AbortSignal.timeout(15_000),
-      });
-    }
+    const dispatcher = proxyUrl
+      ? new ProxyAgent(proxyUrl)
+      : new UndiciAgent();
 
-    const text = await res.text();
+    const undiciRes = await undiciFetch("https://graph.facebook.com/auth/login", {
+      method: "POST",
+      headers: fetchHeaders,
+      body: params.toString(),
+      signal: AbortSignal.timeout(15_000),
+      dispatcher,
+    });
+
+    const text = await undiciRes.text();
     let json: Record<string, unknown>;
     try {
       json = JSON.parse(text) as Record<string, unknown>;

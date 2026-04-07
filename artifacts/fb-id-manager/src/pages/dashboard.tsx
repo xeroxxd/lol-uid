@@ -377,6 +377,7 @@ interface LCResult {
   status: LoginStatus;
   statusLabel: string;
   accessToken: string | null;
+  proxy?: string | null;
 }
 
 function LoginCheckerPanel({
@@ -500,6 +501,7 @@ function LoginCheckerPanel({
                 status: evt.status as LoginStatus,
                 statusLabel: evt.statusLabel as string,
                 accessToken: (evt.accessToken as string | null) ?? null,
+                proxy: (evt.proxy as string | null) ?? null,
               };
               accumulated.push(r);
               setResults((prev) => [r, ...prev]);
@@ -726,6 +728,7 @@ function LoginCheckerPanel({
             <div className="flex flex-col gap-1 pb-24">
               {filteredResults.map((r, i) => {
                 const cfg = LOGIN_STATUS_CONFIG[r.status] ?? LOGIN_STATUS_CONFIG.dead;
+                const proxyLabel = r.proxy ? (() => { try { return new URL(r.proxy).hostname; } catch { return r.proxy; } })() : null;
                 return (
                   <div key={i} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${cfg.bgClass} ${cfg.borderClass}`}>
                     <div className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
@@ -733,6 +736,11 @@ function LoginCheckerPanel({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-mono text-xs text-slate-200 truncate">{r.uid}</span>
                         <span className={`text-[10px] font-semibold ${cfg.color}`}>{r.statusLabel}</span>
+                        {proxyLabel && (
+                          <span className="text-[9px] bg-slate-700/60 text-slate-500 px-1 py-0.5 rounded font-mono">
+                            🌐 {proxyLabel}
+                          </span>
+                        )}
                       </div>
                       {r.accessToken && (
                         <div className="text-[10px] text-green-400/70 font-mono truncate mt-0.5">{r.accessToken.slice(0, 40)}…</div>
@@ -892,7 +900,17 @@ export default function Dashboard() {
     try { return localStorage.getItem("fb_sound_enabled") !== "false"; } catch { return true; }
   });
   const [pwaPrompt, setPwaPrompt] = useState<{ prompt: () => void } | null>(null);
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState<number>(() => {
+    try {
+      const lastActive = localStorage.getItem("fb_last_active");
+      const savedStreak = parseInt(localStorage.getItem("fb_streak_count") ?? "0", 10) || 0;
+      if (!lastActive) return 0;
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      if (lastActive === today || lastActive === yesterday) return savedStreak;
+    } catch {}
+    return 0;
+  });
   const [checkedToday, setCheckedToday] = useState(0);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [showBatchTagPicker, setShowBatchTagPicker] = useState(false);
@@ -1167,12 +1185,10 @@ export default function Dashboard() {
       d.setDate(d.getDate() - 1);
     }
     setStreak(s);
-    if (s > 0) {
-      try {
-        const key = "fb_last_active";
-        localStorage.setItem(key, today);
-      } catch {}
-    }
+    try {
+      localStorage.setItem("fb_last_active", today);
+      if (s > 0) localStorage.setItem("fb_streak_count", String(s));
+    } catch {}
   }, [allItems]);
 
   useEffect(() => {
@@ -1610,18 +1626,33 @@ export default function Dashboard() {
             <div className="text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <Tag className="h-3 w-3" /> Manage Tags
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {customTags.map((t, i) => (
-                <span key={i} className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${t.color}`}>
-                  {t.label}
-                  <button onClick={() => {
-                    const next = customTags.filter((_, idx) => idx !== i);
-                    setCustomTags(next);
-                    try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
-                  }} className="hover:opacity-70 ml-0.5">×</button>
-                </span>
-              ))}
-            </div>
+            {customTags.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {customTags.map((t, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${t.color}`}>{t.label}</span>
+                    <input
+                      defaultValue={t.label}
+                      onBlur={(e) => {
+                        const newLabel = e.target.value.trim().slice(0, 20);
+                        if (!newLabel || newLabel === t.label) return;
+                        if (allTagsWithCustom.find((x, xi) => x.label === newLabel && xi !== i + TAG_OPTIONS.length + 1)) return;
+                        const next = customTags.map((ct, ci) => ci === i ? { ...ct, label: newLabel } : ct);
+                        setCustomTags(next);
+                        try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      className="flex-1 min-w-0 bg-[#070b16] border border-[#1a2540] text-slate-300 text-[10px] px-2 py-0.5 rounded outline-none focus:border-cyan-500/50"
+                    />
+                    <button onClick={() => {
+                      const next = customTags.filter((_, idx) => idx !== i);
+                      setCustomTags(next);
+                      try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
+                    }} className="text-red-500 hover:text-red-300 text-[10px] px-1.5 shrink-0">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex gap-1.5">
               <input
                 value={newCustomTagInput}
@@ -1887,15 +1918,21 @@ export default function Dashboard() {
 
               {/* Pie: Login Status Distribution */}
               {(() => {
-                const lsItems = allItems.filter((i) => i.loginStatus);
-                if (lsItems.length === 0) return null;
-                const lsCounts = lsItems.reduce<Record<string, number>>((acc, i) => {
-                  const k = i.loginStatus ?? "unknown";
+                if (allItems.length === 0) return null;
+                const lsColors: Record<string, string> = {
+                  live: "#22c55e", dead: "#ef4444", checkpoint: "#f59e0b",
+                  "2fa": "#3b82f6", locked: "#f97316", disabled: "#64748b",
+                  wrongpass: "#ec4899", unchecked: "#334155",
+                };
+                const lsCounts = allItems.reduce<Record<string, number>>((acc, i) => {
+                  const k = i.loginStatus ? i.loginStatus : "unchecked";
                   acc[k] = (acc[k] ?? 0) + 1;
                   return acc;
                 }, {});
-                const lsColors: Record<string, string> = { live: "#22c55e", dead: "#ef4444", checkpoint: "#f59e0b", "2fa": "#3b82f6", locked: "#f97316", disabled: "#64748b", wrongpass: "#ec4899" };
-                const lsData = Object.entries(lsCounts).map(([k, v]) => ({ name: k.toUpperCase(), value: v, fill: lsColors[k] ?? "#8b5cf6" }));
+                const lsData = Object.entries(lsCounts)
+                  .filter(([, v]) => v > 0)
+                  .map(([k, v]) => ({ name: k === "unchecked" ? "NOT CHECKED" : k.toUpperCase(), value: v, fill: lsColors[k] ?? "#8b5cf6" }));
+                const checkedCount = allItems.filter((i) => i.loginStatus).length;
                 const lastChecked = allItems.map((i) => i.lastChecked).filter(Boolean).sort().at(-1);
                 return (
                   <div>
@@ -1920,7 +1957,7 @@ export default function Dashboard() {
                             <span className="font-bold text-slate-300">{d.value}</span>
                           </div>
                         ))}
-                        <div className="text-[9px] text-slate-600 mt-0.5">{lsItems.length} total checked</div>
+                        <div className="text-[9px] text-slate-600 mt-0.5">{checkedCount}/{allItems.length} checked</div>
                       </div>
                     </div>
                   </div>
