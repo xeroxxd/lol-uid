@@ -102,7 +102,10 @@ router.post("/login-check", async (req: Request, res: Response) => {
                 eq(facebookIdsTable.userId, userId),
               ),
             );
-        } catch {}
+        } catch (dbErr) {
+          console.error("[login-check] DB persist error for uid=%s: %s", pair.uid, (dbErr as Error).message);
+          emit({ event: "db_error", uid: pair.uid, message: (dbErr as Error).message });
+        }
 
         emit({
           uid: pair.uid,

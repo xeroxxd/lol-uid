@@ -435,6 +435,14 @@ function LoginCheckerPanel({
     const controller = new AbortController();
     abortRef.current = controller;
 
+    const accumulated: LCResult[] = [];
+
+    const triggerComplete = () => {
+      if (onComplete && accumulated.length > 0) {
+        onComplete([...accumulated]);
+      }
+    };
+
     try {
       const response = await fetch("/api/login-check", {
         method: "POST",
@@ -448,6 +456,7 @@ function LoginCheckerPanel({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let streamDone = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -460,7 +469,9 @@ function LoginCheckerPanel({
           try {
             const evt = JSON.parse(line.slice(6)) as Record<string, unknown>;
             if (evt.event === "done") {
+              streamDone = true;
               setStatus("done");
+              triggerComplete();
             } else if (evt.uid) {
               setProgress(evt.progress as number);
               const r: LCResult = {
@@ -470,12 +481,16 @@ function LoginCheckerPanel({
                 statusLabel: evt.statusLabel as string,
                 accessToken: (evt.accessToken as string | null) ?? null,
               };
+              accumulated.push(r);
               setResults((prev) => [r, ...prev]);
             }
           } catch {}
         }
       }
-      setStatus((s) => (s === "running" ? "done" : s));
+      if (!streamDone) {
+        setStatus("done");
+        triggerComplete();
+      }
     } catch (e) {
       if ((e as Error).name !== "AbortError") setStatus("aborted");
     }
