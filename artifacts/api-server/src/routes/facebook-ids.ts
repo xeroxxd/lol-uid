@@ -133,6 +133,10 @@ router.get("/facebook-ids", async (req: Request, res: Response) => {
       tag: item.tag ?? null,
       createdAt: item.createdAt.toISOString(),
       visitedAt: item.visitedAt ? item.visitedAt.toISOString() : null,
+      loginStatus: item.loginStatus ?? null,
+      accessToken: item.accessToken ?? null,
+      lastChecked: item.lastChecked ? item.lastChecked.toISOString() : null,
+      checkCount: item.checkCount ?? 0,
     })),
   });
 });
@@ -250,7 +254,7 @@ router.patch("/facebook-ids/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const updates: { pinned?: boolean; visited?: boolean; visitedAt?: Date | null; note?: string | null; tag?: string | null } = {};
+  const updates: { pinned?: boolean; visited?: boolean; visitedAt?: Date | null; note?: string | null; tag?: string | null; loginStatus?: string | null; accessToken?: string | null } = {};
   if (bodyParsed.data.pinned !== undefined) updates.pinned = bodyParsed.data.pinned;
   if (bodyParsed.data.visited !== undefined) {
     updates.visited = bodyParsed.data.visited;
@@ -258,6 +262,8 @@ router.patch("/facebook-ids/:id", async (req: Request, res: Response) => {
   }
   if ("note" in bodyParsed.data) updates.note = bodyParsed.data.note ?? null;
   if ("tag" in bodyParsed.data) updates.tag = bodyParsed.data.tag ?? null;
+  if ("loginStatus" in bodyParsed.data) updates.loginStatus = (bodyParsed.data as Record<string, unknown>).loginStatus as string | null ?? null;
+  if ("accessToken" in bodyParsed.data) updates.accessToken = (bodyParsed.data as Record<string, unknown>).accessToken as string | null ?? null;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });

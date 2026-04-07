@@ -31,8 +31,9 @@ import {
 } from "recharts";
 
 type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved" | "alpha" | "recent" | "name" | "followers";
-type FilterMode = "all" | "checked" | "unchecked" | "saved" | "noted" | "tagged" | "hasig" | "hasname" | "dead" | "hasnote";
-type CopyFormat = "both" | "uid" | "pass" | "named";
+type FilterMode = "all" | "checked" | "unchecked" | "saved" | "noted" | "tagged" | "hasig" | "hasname" | "dead" | "hasnote" | "live" | "checkpoint" | "twofactor";
+type CopyFormat = "both" | "uid" | "pass" | "named" | "token";
+type LoginStatus = "live" | "dead" | "checkpoint" | "2fa" | "locked" | "disabled" | "wrongpass";
 
 interface ProfileData {
   name: string | null;
@@ -353,6 +354,353 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead }: { onClose: () =
   );
 }
 
+const LOGIN_STATUS_CONFIG: Record<LoginStatus, { label: string; color: string; dotClass: string; bgClass: string; borderClass: string }> = {
+  live:       { label: "Live ✅",            color: "text-green-400",  dotClass: "bg-green-400",  bgClass: "bg-green-900/20",  borderClass: "border-green-500/30" },
+  dead:       { label: "Dead ❌",            color: "text-red-500",    dotClass: "bg-red-500",    bgClass: "bg-red-900/15",    borderClass: "border-red-500/20" },
+  checkpoint: { label: "Checkpoint 🔒",      color: "text-yellow-400", dotClass: "bg-yellow-400", bgClass: "bg-yellow-900/20", borderClass: "border-yellow-500/30" },
+  "2fa":      { label: "2FA 🔑",             color: "text-blue-400",   dotClass: "bg-blue-400",   bgClass: "bg-blue-900/20",   borderClass: "border-blue-500/30" },
+  locked:     { label: "Locked 🚫",          color: "text-orange-400", dotClass: "bg-orange-400", bgClass: "bg-orange-900/20", borderClass: "border-orange-500/30" },
+  disabled:   { label: "Disabled 🛑",        color: "text-slate-500",  dotClass: "bg-slate-500",  bgClass: "bg-slate-900/30",  borderClass: "border-slate-600/30" },
+  wrongpass:  { label: "Wrong Password 🔐",  color: "text-pink-400",   dotClass: "bg-pink-400",   bgClass: "bg-pink-900/20",   borderClass: "border-pink-500/30" },
+};
+
+type LCStatus = "idle" | "running" | "done" | "aborted";
+interface LCResult {
+  uid: string;
+  password: string;
+  status: LoginStatus;
+  statusLabel: string;
+  accessToken: string | null;
+}
+
+function LoginCheckerPanel({
+  onClose,
+  prefillPairs,
+  onComplete,
+}: {
+  onClose: () => void;
+  prefillPairs?: string;
+  onComplete?: (results: LCResult[]) => void;
+}) {
+  const [inputText, setInputText] = useState(prefillPairs ?? "");
+  const [workers, setWorkers] = useState(3);
+  const [delay, setDelay] = useState(1);
+  const [status, setStatus] = useState<LCStatus>("idle");
+  const [results, setResults] = useState<LCResult[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState<LoginStatus | "all">("all");
+  const abortRef = useRef<AbortController | null>(null);
+
+  const pairCount = inputText.split("\n").filter((l) => l.trim() && l.includes("|")).length;
+  const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
+
+  const countsByStatus = useMemo(() => {
+    const c: Partial<Record<LoginStatus, number>> = {};
+    for (const r of results) {
+      c[r.status] = (c[r.status] ?? 0) + 1;
+    }
+    return c;
+  }, [results]);
+
+  const filteredResults = useMemo(() => {
+    if (activeTab === "all") return results;
+    return results.filter((r) => r.status === activeTab);
+  }, [results, activeTab]);
+
+  const startCheck = async () => {
+    const pairs = inputText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => {
+        const parts = l.split("|");
+        return { uid: parts[0]?.trim() ?? "", password: parts.slice(1).join("|").trim() };
+      })
+      .filter((p) => p.uid && p.password);
+
+    if (!pairs.length) return;
+
+    setStatus("running");
+    setResults([]);
+    setProgress(0);
+    setTotal(pairs.length);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const response = await fetch("/api/login-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pairs, workers, delay: delay * 1000 }),
+        credentials: "include",
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) { setStatus("aborted"); return; }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6)) as Record<string, unknown>;
+            if (evt.event === "done") {
+              setStatus("done");
+            } else if (evt.uid) {
+              setProgress(evt.progress as number);
+              const r: LCResult = {
+                uid: evt.uid as string,
+                password: evt.password as string,
+                status: evt.status as LoginStatus,
+                statusLabel: evt.statusLabel as string,
+                accessToken: (evt.accessToken as string | null) ?? null,
+              };
+              setResults((prev) => [r, ...prev]);
+            }
+          } catch {}
+        }
+      }
+      setStatus((s) => (s === "running" ? "done" : s));
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") setStatus("aborted");
+    }
+  };
+
+  const abort = () => { abortRef.current?.abort(); setStatus("aborted"); };
+
+  const copyText = (t: string) => navigator.clipboard.writeText(t);
+
+  const liveResults = results.filter((r) => r.status === "live");
+
+  const exportLiveTokens = () => {
+    const lines = liveResults.map((r) => r.accessToken ? `${r.uid}|${r.password}|${r.accessToken}` : `${r.uid}|${r.password}`);
+    copyText(lines.join("\n"));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#070b16] text-white">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-[#0c1122] border-b border-[#1a2540] sticky top-0 z-10">
+        <Shield className="h-4 w-4 text-purple-400 shrink-0" />
+        <span className="font-bold text-sm flex-1">Graph API Login Checker</span>
+        {status === "running" && (
+          <button onClick={abort} className="text-[11px] bg-red-600/30 border border-red-500/40 text-red-300 px-3 py-1 rounded-lg hover:bg-red-600/50 transition-colors">
+            Stop
+          </button>
+        )}
+        {(status === "done" || status === "aborted") && results.length > 0 && onComplete && (
+          <button
+            onClick={() => { onComplete(results); onClose(); }}
+            className="text-[11px] bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 px-3 py-1 rounded-lg hover:bg-cyan-600/50 transition-colors">
+            Apply to Dashboard
+          </button>
+        )}
+        <button onClick={() => { if (status === "running") abort(); onClose(); }} className="p-1.5 rounded text-slate-400 hover:text-white transition-colors">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-3">
+
+        {/* Settings */}
+        {status === "idle" && (
+          <>
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-3">
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Paste uid|password lines</div>
+              <textarea
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder={"100044388870940|mypassword123\n100012345678|another_pass\n..."}
+                rows={8}
+                className="w-full bg-[#070b16] border border-[#1a2540] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-lg px-3 py-2.5 outline-none focus:border-purple-500/50 resize-none"
+              />
+              <div className="text-[10px] text-slate-600">{pairCount} valid pairs · max 2,000</div>
+            </div>
+
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider">Workers</span>
+                <span className="text-xs font-bold text-purple-300">{workers}</span>
+              </div>
+              <input type="range" min={1} max={10} value={workers} onChange={(e) => setWorkers(Number(e.target.value))}
+                className="w-full accent-purple-500" />
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider">Delay Between Requests</span>
+                <span className="text-xs font-bold text-purple-300">{delay}s</span>
+              </div>
+              <input type="range" min={0} max={5} step={0.5} value={delay} onChange={(e) => setDelay(Number(e.target.value))}
+                className="w-full accent-purple-500" />
+            </div>
+
+            <div className="bg-[#0c1122] rounded-xl border border-purple-500/20 p-3">
+              <div className="text-[10px] text-purple-400 font-semibold mb-1.5">Status Guide</div>
+              <div className="grid grid-cols-2 gap-1">
+                {(Object.entries(LOGIN_STATUS_CONFIG) as [LoginStatus, typeof LOGIN_STATUS_CONFIG[LoginStatus]][]).map(([, cfg]) => (
+                  <div key={cfg.label} className="flex items-center gap-1.5 text-[10px]">
+                    <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0`} />
+                    <span className={cfg.color}>{cfg.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={startCheck}
+              disabled={pairCount === 0}
+              className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+              <Shield className="h-4 w-4" /> Start Login Check ({pairCount} pairs)
+            </button>
+          </>
+        )}
+
+        {/* Running */}
+        {status === "running" && (
+          <>
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3">
+              <div className="flex items-center justify-between text-[11px] mb-2">
+                <span className="text-slate-400">{progress}/{total} checked</span>
+                <span className="text-purple-400 font-bold">{pct}%</span>
+              </div>
+              <div className="h-2.5 bg-[#1a2540] rounded-full overflow-hidden mb-3">
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#a855f7,#6366f1)" }} />
+              </div>
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                {countsByStatus.live ? <span className="text-green-400 font-semibold">✅ {countsByStatus.live} Live</span> : null}
+                {countsByStatus.checkpoint ? <span className="text-yellow-400 font-semibold">🔒 {countsByStatus.checkpoint} Checkpoint</span> : null}
+                {countsByStatus["2fa"] ? <span className="text-blue-400 font-semibold">🔑 {countsByStatus["2fa"]} 2FA</span> : null}
+                {countsByStatus.wrongpass ? <span className="text-pink-400 font-semibold">🔐 {countsByStatus.wrongpass} WrongPass</span> : null}
+                {countsByStatus.dead ? <span className="text-red-400 font-semibold">❌ {countsByStatus.dead} Dead</span> : null}
+                {countsByStatus.locked ? <span className="text-orange-400 font-semibold">🚫 {countsByStatus.locked} Locked</span> : null}
+                {countsByStatus.disabled ? <span className="text-slate-400 font-semibold">🛑 {countsByStatus.disabled} Disabled</span> : null}
+                <span className="text-slate-600 ml-auto">{total - progress} left</span>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Live Feed</div>
+            <div className="flex flex-col gap-1">
+              {results.slice(0, 30).map((r, i) => {
+                const cfg = LOGIN_STATUS_CONFIG[r.status] ?? LOGIN_STATUS_CONFIG.dead;
+                return (
+                  <div key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 border ${cfg.bgClass} ${cfg.borderClass}`}>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
+                    <span className="font-mono text-xs text-slate-300 truncate flex-1">{r.uid}</span>
+                    <span className={`text-[10px] font-semibold ${cfg.color} shrink-0`}>{r.statusLabel}</span>
+                    {r.accessToken && (
+                      <button onClick={() => copyText(r.accessToken!)} className="text-[9px] bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded hover:bg-green-900/60 shrink-0">
+                        Token
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Done / Aborted */}
+        {(status === "done" || status === "aborted") && (
+          <>
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-4">
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider text-center mb-3">
+                {status === "done" ? "✅ Check Complete" : "⚠️ Aborted"}
+              </div>
+              <div className="flex flex-wrap justify-center gap-4">
+                {(Object.entries(countsByStatus) as [LoginStatus, number][]).map(([s, cnt]) => {
+                  const cfg = LOGIN_STATUS_CONFIG[s];
+                  return (
+                    <div key={s} className="text-center">
+                      <div className={`text-2xl font-bold ${cfg.color}`}>{cnt}</div>
+                      <div className="text-[10px] text-slate-500">{cfg.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Export live tokens */}
+            {liveResults.length > 0 && (
+              <div className="flex gap-1.5">
+                <button onClick={exportLiveTokens}
+                  className="flex-1 py-2.5 text-xs font-bold bg-green-600/30 border border-green-500/40 text-green-300 hover:bg-green-600/50 rounded-xl flex items-center justify-center gap-1.5 transition-colors">
+                  <Copy className="h-3.5 w-3.5" /> Copy Live (uid|pass|token) ({liveResults.length})
+                </button>
+                <button onClick={() => copyText(liveResults.map((r) => `${r.uid}|${r.password}`).join("\n"))}
+                  className="flex-1 py-2.5 text-xs font-bold bg-[#1a2540] border border-[#1a2540] text-slate-300 hover:text-white rounded-xl flex items-center justify-center gap-1.5 transition-colors">
+                  <Copy className="h-3.5 w-3.5" /> Copy Live Pairs
+                </button>
+              </div>
+            )}
+
+            {/* Filter tabs */}
+            <div className="flex gap-1 flex-wrap">
+              <button onClick={() => setActiveTab("all")}
+                className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${activeTab === "all" ? "bg-purple-500 border-purple-500 text-white font-bold" : "border-[#1a2540] text-slate-500 hover:text-white"}`}>
+                All ({results.length})
+              </button>
+              {(Object.entries(countsByStatus) as [LoginStatus, number][]).map(([s, cnt]) => {
+                const cfg = LOGIN_STATUS_CONFIG[s];
+                return (
+                  <button key={s} onClick={() => setActiveTab(s)}
+                    className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${activeTab === s ? `${cfg.bgClass} ${cfg.borderClass} ${cfg.color} font-bold` : "border-[#1a2540] text-slate-500 hover:text-white"}`}>
+                    {cfg.label} ({cnt})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Results list */}
+            <div className="flex flex-col gap-1 pb-24">
+              {filteredResults.map((r, i) => {
+                const cfg = LOGIN_STATUS_CONFIG[r.status] ?? LOGIN_STATUS_CONFIG.dead;
+                return (
+                  <div key={i} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${cfg.bgClass} ${cfg.borderClass}`}>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-xs text-slate-200 truncate">{r.uid}</span>
+                        <span className={`text-[10px] font-semibold ${cfg.color}`}>{r.statusLabel}</span>
+                      </div>
+                      {r.accessToken && (
+                        <div className="text-[10px] text-green-400/70 font-mono truncate mt-0.5">{r.accessToken.slice(0, 40)}…</div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1 shrink-0">
+                      <button onClick={() => copyText(`${r.uid}|${r.password}`)}
+                        className="text-[9px] bg-slate-700/50 hover:bg-slate-600/60 text-slate-300 px-1.5 py-0.5 rounded">
+                        uid|pass
+                      </button>
+                      {r.accessToken && (
+                        <button onClick={() => copyText(r.accessToken!)}
+                          className="text-[9px] bg-green-900/40 hover:bg-green-900/60 text-green-400 px-1.5 py-0.5 rounded">
+                          Token
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button onClick={() => { setStatus("idle"); setResults([]); setProgress(0); setActiveTab("all"); }}
+              className="w-full py-2.5 border border-[#1a2540] text-slate-400 hover:text-white text-xs rounded-xl transition-colors mb-24 flex items-center justify-center gap-1.5">
+              <RotateCcw className="h-3 w-3" /> Check Again
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function highlightText(text: string, query: string): ReactNode {
   if (!query.trim()) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -434,6 +782,8 @@ export default function Dashboard() {
     } catch { return new Map(); }
   });
   const [showValidator, setShowValidator] = useState(false);
+  const [showLoginChecker, setShowLoginChecker] = useState(false);
+  const [loginCheckerPrefill, setLoginCheckerPrefill] = useState<string | undefined>(undefined);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [showBatchTagPicker, setShowBatchTagPicker] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -727,15 +1077,18 @@ export default function Dashboard() {
       );
     }
     switch (filterMode) {
-      case "checked":  items = items.filter((i) => i.visited); break;
-      case "unchecked": items = items.filter((i) => !i.visited); break;
-      case "saved":    items = items.filter((i) => i.pinned); break;
-      case "noted":    items = items.filter((i) => !!i.note); break;
-      case "hasnote":  items = items.filter((i) => !!i.note); break;
-      case "tagged":   items = items.filter((i) => !!i.tag); break;
-      case "hasig":    items = items.filter((i) => !!profileData.get(i.uid)?.instagramUsername); break;
-      case "hasname":  items = items.filter((i) => !!profileData.get(i.uid)?.name); break;
-      case "dead":     items = items.filter((i) => i.tag === "Dead"); break;
+      case "checked":     items = items.filter((i) => i.visited); break;
+      case "unchecked":   items = items.filter((i) => !i.visited); break;
+      case "saved":       items = items.filter((i) => i.pinned); break;
+      case "noted":       items = items.filter((i) => !!i.note); break;
+      case "hasnote":     items = items.filter((i) => !!i.note); break;
+      case "tagged":      items = items.filter((i) => !!i.tag); break;
+      case "hasig":       items = items.filter((i) => !!profileData.get(i.uid)?.instagramUsername); break;
+      case "hasname":     items = items.filter((i) => !!profileData.get(i.uid)?.name); break;
+      case "dead":        items = items.filter((i) => i.tag === "Dead"); break;
+      case "live":        items = items.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "live"); break;
+      case "checkpoint":  items = items.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "checkpoint"); break;
+      case "twofactor":   items = items.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "2fa"); break;
     }
     if (tagFilter !== null) {
       items = items.filter((i) => i.tag === tagFilter);
@@ -808,13 +1161,17 @@ export default function Dashboard() {
     downloadFile(JSON.stringify(data, null, 2), filename);
   };
 
-  const formatText = (uid: string, password: string | null): string => {
+  const formatText = (uid: string, password: string | null, accessToken?: string | null): string => {
     if (copyFormat === "uid") return uid;
     if (copyFormat === "pass") return password ?? uid;
     if (copyFormat === "named") {
       const p = profileData.get(uid);
       const parts = [uid, password ?? "", p?.name ?? "", p?.instagramUsername ? `IG:${p.instagramUsername}` : ""].filter(Boolean);
       return parts.join("|");
+    }
+    if (copyFormat === "token") {
+      if (accessToken) return `${uid}|${password ?? ""}|${accessToken}`;
+      return password ? `${uid}|${password}` : uid;
     }
     return password ? `${uid}|${password}` : uid;
   };
@@ -859,7 +1216,7 @@ export default function Dashboard() {
     setSelected(new Set());
   };
   const bulkCopy = () => {
-    const text = selectedItems.map((i) => formatText(i.uid, i.password)).join("\n");
+    const text = selectedItems.map((i) => formatText(i.uid, i.password, (i as { accessToken?: string | null }).accessToken)).join("\n");
     copy(text, `Copied ${selectedItems.length} items`);
   };
 
@@ -874,7 +1231,7 @@ export default function Dashboard() {
   };
 
   const handleCopyAll = () => {
-    const text = (selected.size > 0 ? selectedItems : filteredItems).map((i) => formatText(i.uid, i.password)).join("\n");
+    const text = (selected.size > 0 ? selectedItems : filteredItems).map((i) => formatText(i.uid, i.password, (i as { accessToken?: string | null }).accessToken)).join("\n");
     copy(text, `Copied ${selected.size > 0 ? selectedItems.length : filteredItems.length} IDs`);
   };
 
@@ -889,6 +1246,9 @@ export default function Dashboard() {
   const igCount = allItems.filter((i) => !!profileData.get(i.uid)?.instagramUsername).length;
   const nameCount = allItems.filter((i) => !!profileData.get(i.uid)?.name).length;
   const deadCount = allItems.filter((i) => i.tag === "Dead").length;
+  const liveLoginCount = allItems.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "live").length;
+  const checkpointCount = allItems.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "checkpoint").length;
+  const twofaCount = allItems.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "2fa").length;
 
   const filterTabs: { key: FilterMode; label: string; count: number }[] = [
     { key: "all",       label: "All",  count: allItems.length },
@@ -897,9 +1257,12 @@ export default function Dashboard() {
     { key: "saved",     label: "💾",   count: allItems.filter((i) => i.pinned).length },
     { key: "hasnote",   label: "📝",   count: allItems.filter((i) => !!i.note).length },
     { key: "tagged",    label: "🏷️",  count: allItems.filter((i) => !!i.tag).length },
-    ...(igCount > 0   ? [{ key: "hasig"   as FilterMode, label: "📷 IG", count: igCount }] : []),
-    ...(nameCount > 0 ? [{ key: "hasname" as FilterMode, label: "👤 Name", count: nameCount }] : []),
-    ...(deadCount > 0 ? [{ key: "dead"    as FilterMode, label: "💀 Dead", count: deadCount }] : []),
+    ...(igCount > 0          ? [{ key: "hasig"      as FilterMode, label: "📷 IG",         count: igCount }] : []),
+    ...(nameCount > 0        ? [{ key: "hasname"    as FilterMode, label: "👤 Name",        count: nameCount }] : []),
+    ...(deadCount > 0        ? [{ key: "dead"       as FilterMode, label: "💀 Dead",        count: deadCount }] : []),
+    ...(liveLoginCount > 0   ? [{ key: "live"       as FilterMode, label: "🔓 Live",        count: liveLoginCount }] : []),
+    ...(checkpointCount > 0  ? [{ key: "checkpoint" as FilterMode, label: "🔒 Checkpoint",  count: checkpointCount }] : []),
+    ...(twofaCount > 0       ? [{ key: "twofactor"  as FilterMode, label: "🔑 2FA",         count: twofaCount }] : []),
   ];
 
   return (
@@ -937,6 +1300,14 @@ export default function Dashboard() {
             className={`p-1.5 rounded hover:bg-white/10 transition-colors ${showSettings ? "text-cyan-400" : "text-slate-400 hover:text-white"}`} title="Settings">
             <Settings className="h-4 w-4" />
           </button>
+          <button onClick={() => {
+              const pairs = allItems.filter((i) => i.password).map((i) => `${i.uid}|${i.password}`).join("\n");
+              setLoginCheckerPrefill(pairs);
+              setShowLoginChecker(true);
+            }}
+            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-purple-400 transition-colors" title="Login Checker">
+            <Shield className="h-4 w-4" />
+          </button>
           <button onClick={logout} className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Logout">
             <LogOut className="h-4 w-4" />
           </button>
@@ -956,6 +1327,7 @@ export default function Dashboard() {
             { key: "uid",   label: "UID only" },
             { key: "pass",  label: "Pass only" },
             { key: "named", label: "UID|Pass|Name|IG" },
+            { key: "token", label: "UID|Pass|Token" },
           ] as { key: CopyFormat; label: string }[]).map(({ key, label }) => (
             <button key={key} onClick={() => { setCopyFormat(key); setShowCopyFmt(false); }}
               className={`text-xs px-3 py-1 rounded-full border transition-colors
@@ -1326,7 +1698,7 @@ export default function Dashboard() {
             { label: "💾 Saved", type: "saved" as const },
           ].map(({ label, type }) => {
             const items = getBulk(type);
-            const text = items.map((i) => formatText(i.uid, i.password)).join("\n");
+            const text = items.map((i) => formatText(i.uid, i.password, (i as { accessToken?: string | null }).accessToken)).join("\n");
             return (
               <div key={type} className="flex items-center px-3 py-2.5 gap-2">
                 <span className="text-xs text-slate-300 flex-1 font-medium">{label}
@@ -1559,9 +1931,15 @@ export default function Dashboard() {
                     <span className="text-[9px] text-slate-600">{idx + 1}</span>
                     {item.tag && <span className={`text-[8px] font-bold px-1 rounded ${tagColor(item.tag)}`}>{item.tag}</span>}
                     {item.pinned && <span className="text-[9px] text-green-400">💾</span>}
+                    {(() => {
+                      const ls = (item as { loginStatus?: string | null }).loginStatus as LoginStatus | null | undefined;
+                      if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
+                      const cfg = LOGIN_STATUS_CONFIG[ls];
+                      return <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0`} title={cfg.label} />;
+                    })()}
                   </div>
                   <button
-                    onClick={() => copy(formatText(item.uid, item.password), "Copied!")}
+                    onClick={() => copy(formatText(item.uid, item.password, (item as { accessToken?: string | null }).accessToken), "Copied!")}
                     className={`font-mono block truncate text-left w-full transition-colors active:opacity-60 ${fontClass(fontSize)}
                       ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
                     {highlightText(item.uid, searchQuery)}
@@ -1654,7 +2032,7 @@ export default function Dashboard() {
                           {item.visited ? <CheckSquare className="h-6 w-6" /> : <Square className="h-6 w-6" />}
                           <span className="text-[10px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
                         </button>
-                        <button onClick={() => copy(formatText(item.uid, item.password), "Copied!")} className="flex flex-col items-center gap-1.5 text-sky-400 active:scale-95 transition-transform">
+                        <button onClick={() => copy(formatText(item.uid, item.password, (item as { accessToken?: string | null }).accessToken), "Copied!")} className="flex flex-col items-center gap-1.5 text-sky-400 active:scale-95 transition-transform">
                           <Copy className="h-6 w-6" />
                           <span className="text-[10px] font-bold">Copy</span>
                         </button>
@@ -1841,6 +2219,30 @@ export default function Dashboard() {
                       <Copy className="h-2.5 w-2.5" />UID
                     </button>
                   </div>
+
+                  {/* Login status badge */}
+                  {(() => {
+                    const ls = (item as { loginStatus?: string | null }).loginStatus as LoginStatus | null | undefined;
+                    if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
+                    const cfg = LOGIN_STATUS_CONFIG[ls];
+                    const token = (item as { accessToken?: string | null }).accessToken;
+                    return (
+                      <div className={`flex items-center gap-1.5 px-3 pb-1 text-[10px]`}>
+                        <div className="w-3.5 h-3.5 shrink-0" />
+                        <div className="w-4 shrink-0" />
+                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border ${cfg.bgClass} ${cfg.borderClass} flex-wrap`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0`} />
+                          <span className={`font-semibold ${cfg.color}`}>{cfg.label}</span>
+                          {token && (
+                            <button onClick={() => copy(token, "Token copied!")}
+                              className="text-[9px] bg-green-900/40 text-green-400 hover:bg-green-900/60 px-1.5 py-0.5 rounded ml-auto">
+                              Copy Token
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Pass row */}
                   <div className="flex items-center gap-2 px-3 pb-1.5">
@@ -2070,6 +2472,29 @@ export default function Dashboard() {
           onClose={() => setShowValidator(false)}
           onImportLive={handleImportLive}
           onImportDead={handleImportDead}
+        />
+      )}
+
+      {/* Login Checker Overlay */}
+      {showLoginChecker && (
+        <LoginCheckerPanel
+          onClose={() => setShowLoginChecker(false)}
+          prefillPairs={loginCheckerPrefill}
+          onComplete={(results) => {
+            results.forEach((r) => {
+              const item = allItems.find((i) => i.uid === r.uid);
+              if (item) {
+                updateMutation.mutate({
+                  id: item.id,
+                  data: {
+                    loginStatus: r.status,
+                    accessToken: r.accessToken ?? null,
+                  } as Parameters<typeof updateMutation.mutate>[0]["data"],
+                });
+              }
+            });
+            queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
+          }}
         />
       )}
 

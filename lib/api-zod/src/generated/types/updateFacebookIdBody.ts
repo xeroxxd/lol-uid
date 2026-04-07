@@ -11,4 +11,6 @@ export interface UpdateFacebookIdBody {
   visited?: boolean;
   note?: string | null;
   tag?: string | null;
+  loginStatus?: string | null;
+  accessToken?: string | null;
 }

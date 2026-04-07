@@ -4,12 +4,14 @@ import authRouter from "./auth";
 import facebookIdsRouter from "./facebook-ids";
 import profileLookupRouter from "./profile-lookup";
 import validateBulkRouter from "./validate-bulk";
+import loginCheckRouter from "./login-check";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(validateBulkRouter);
+router.use(loginCheckRouter);
 router.use(facebookIdsRouter);
 router.use(profileLookupRouter);
 

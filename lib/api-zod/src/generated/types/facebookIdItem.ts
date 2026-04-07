@@ -18,4 +18,13 @@ export interface FacebookIdItem {
   /** @nullable */
   tag: string | null;
   createdAt: Date;
+  /** @nullable */
+  visitedAt?: string | null;
+  /** @nullable */
+  loginStatus?: string | null;
+  /** @nullable */
+  accessToken?: string | null;
+  /** @nullable */
+  lastChecked?: string | null;
+  checkCount?: number;
 }

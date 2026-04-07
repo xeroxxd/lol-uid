@@ -198,6 +198,8 @@ export const UpdateFacebookIdBody = zod.object({
   visited: zod.boolean().optional(),
   note: zod.string().nullable().optional(),
   tag: zod.string().nullable().optional(),
+  loginStatus: zod.string().nullable().optional(),
+  accessToken: zod.string().nullable().optional(),
 });
 
 export const UpdateFacebookIdResponse = zod.object({

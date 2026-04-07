@@ -64,6 +64,15 @@ export interface FacebookIdItem {
   /** @nullable */
   tag: string | null;
   createdAt: string;
+  /** @nullable */
+  visitedAt?: string | null;
+  /** @nullable */
+  loginStatus?: string | null;
+  /** @nullable */
+  accessToken?: string | null;
+  /** @nullable */
+  lastChecked?: string | null;
+  checkCount?: number;
 }
 
 export interface FacebookIdList {
@@ -86,6 +95,8 @@ export interface UpdateFacebookIdBody {
   visited?: boolean;
   note?: string | null;
   tag?: string | null;
+  loginStatus?: string | null;
+  accessToken?: string | null;
 }
 
 export interface DeleteResult {

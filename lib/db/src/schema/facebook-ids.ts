@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./auth";
@@ -14,6 +14,10 @@ export const facebookIdsTable = pgTable("facebook_ids", {
   tag: varchar("tag", { length: 50 }),
   visitedAt: timestamp("visited_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  loginStatus: varchar("login_status", { length: 20 }),
+  accessToken: varchar("access_token", { length: 500 }),
+  lastChecked: timestamp("last_checked", { withTimezone: true }),
+  checkCount: integer("check_count").notNull().default(0),
 });
 
 export const insertFacebookIdSchema = createInsertSchema(facebookIdsTable).omit({ id: true, createdAt: true });
