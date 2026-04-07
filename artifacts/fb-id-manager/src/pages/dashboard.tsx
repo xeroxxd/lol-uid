@@ -1170,7 +1170,16 @@ export default function Dashboard() {
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
-      setPwaPrompt(e as unknown as { prompt: () => void });
+      const promptEvent = e as unknown as { prompt: () => void };
+      setPwaPrompt(promptEvent);
+      // Auto-prompt on first visit (once only)
+      try {
+        if (!localStorage.getItem("fb_pwa_prompted")) {
+          localStorage.setItem("fb_pwa_prompted", "1");
+          // Small delay so the page is fully loaded before showing the native dialog
+          setTimeout(() => { promptEvent.prompt(); setPwaPrompt(null); }, 3000);
+        }
+      } catch {}
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);

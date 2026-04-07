@@ -41,8 +41,14 @@ router.post("/login-check", async (req: Request, res: Response) => {
 
   const workers = Math.min(Math.max(Number(body.workers ?? 3), 1), 10);
   const delayMs = Math.min(Math.max(Number(body.delay ?? 1000), 0), 5000);
+  const ALLOWED_PROXY_SCHEMES = ["http:", "https:", "socks:", "socks4:", "socks4a:", "socks5:"];
   const proxies = Array.isArray(body.proxies)
-    ? body.proxies.filter((p) => typeof p === "string" && p.trim().length > 0).map((p) => p.trim())
+    ? body.proxies
+        .filter((p) => typeof p === "string" && p.trim().length > 0)
+        .map((p) => p.trim())
+        .filter((p) => {
+          try { return ALLOWED_PROXY_SCHEMES.includes(new URL(p).protocol); } catch { return false; }
+        })
     : [];
   let proxyIndex = 0;
   const nextProxy = (): string | undefined => {
@@ -94,8 +100,8 @@ router.post("/login-check", async (req: Request, res: Response) => {
       const pair = queue.shift();
       if (!pair) break;
 
+      const proxy = nextProxy();
       try {
-        const proxy = nextProxy();
         const result = await checkFbLogin(pair.uid, pair.password, proxy);
         processedCount++;
 
@@ -139,6 +145,7 @@ router.post("/login-check", async (req: Request, res: Response) => {
           status: "dead" as LoginStatus,
           statusLabel: statusLabel.dead,
           accessToken: null,
+          proxy: proxy ?? null,
           progress: processedCount,
           total,
         });
