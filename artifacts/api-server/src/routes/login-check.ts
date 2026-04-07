@@ -20,6 +20,7 @@ router.post("/login-check", async (req: Request, res: Response) => {
     pairs?: { uid: string; password: string }[];
     workers?: number;
     delay?: number;
+    proxies?: string[];
   };
 
   if (!body || !Array.isArray(body.pairs) || body.pairs.length === 0) {
@@ -40,6 +41,16 @@ router.post("/login-check", async (req: Request, res: Response) => {
 
   const workers = Math.min(Math.max(Number(body.workers ?? 3), 1), 10);
   const delayMs = Math.min(Math.max(Number(body.delay ?? 1000), 0), 5000);
+  const proxies = Array.isArray(body.proxies)
+    ? body.proxies.filter((p) => typeof p === "string" && p.trim().length > 0).map((p) => p.trim())
+    : [];
+  let proxyIndex = 0;
+  const nextProxy = (): string | undefined => {
+    if (proxies.length === 0) return undefined;
+    const p = proxies[proxyIndex % proxies.length];
+    proxyIndex++;
+    return p;
+  };
   const total = pairs.length;
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -84,7 +95,8 @@ router.post("/login-check", async (req: Request, res: Response) => {
       if (!pair) break;
 
       try {
-        const result = await checkFbLogin(pair.uid, pair.password);
+        const proxy = nextProxy();
+        const result = await checkFbLogin(pair.uid, pair.password, proxy);
         processedCount++;
 
         try {
@@ -113,6 +125,7 @@ router.post("/login-check", async (req: Request, res: Response) => {
           status: result.status,
           statusLabel: statusLabel[result.status],
           accessToken: result.accessToken,
+          proxy: proxy ?? null,
           progress: processedCount,
           total,
         });

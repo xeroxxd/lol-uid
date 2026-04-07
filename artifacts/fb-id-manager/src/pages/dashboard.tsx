@@ -23,7 +23,7 @@ import {
   FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
   Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon, Save,
   BookmarkCheck, CheckCircle, RefreshCw, RotateCcw, Eye, EyeOff, TrendingUp,
-  Crown, Flame, Wifi, WifiOff, Sparkles, Filter, AlarmClock,
+  Crown, Flame, Wifi, WifiOff, Sparkles, Filter, AlarmClock, Bell, BellOff, Smartphone, Clipboard,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
@@ -93,7 +93,7 @@ function ValidatorAvatar({ uid, name, photoUrl }: { uid: string; name: string | 
   );
 }
 
-function ValidatorPanel({ onClose, onImportLive, onImportDead }: { onClose: () => void; onImportLive: (uids: string[]) => void; onImportDead: (uids: string[]) => void }) {
+function ValidatorPanel({ onClose, onImportLive, onImportDead, soundEnabled, onPlayChime }: { onClose: () => void; onImportLive: (uids: string[]) => void; onImportDead: (uids: string[]) => void; soundEnabled?: boolean; onPlayChime?: () => void; }) {
   const [inputText, setInputText] = useState("");
   const [status, setStatus] = useState<ValidatorStatus>("idle");
   const [liveResults, setLiveResults] = useState<VResult[]>([]);
@@ -172,7 +172,13 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead }: { onClose: () =
           } catch {}
         }
       }
-      setStatus((s) => (s === "running" ? "done" : s));
+      setStatus((s) => {
+        if (s === "running") {
+          if (soundEnabled && onPlayChime) onPlayChime();
+          return "done";
+        }
+        return s;
+      });
     } catch {
       setStatus("aborted");
     }
@@ -377,12 +383,18 @@ function LoginCheckerPanel({
   onClose,
   prefillPairs,
   onComplete,
+  soundEnabled,
+  onPlayChime,
 }: {
   onClose: () => void;
   prefillPairs?: string;
   onComplete?: (results: LCResult[]) => void;
+  soundEnabled?: boolean;
+  onPlayChime?: () => void;
 }) {
   const [inputText, setInputText] = useState(prefillPairs ?? "");
+  const [proxyText, setProxyText] = useState("");
+  const [showProxies, setShowProxies] = useState(false);
   const [workers, setWorkers] = useState(3);
   const [delay, setDelay] = useState(1);
   const [status, setStatus] = useState<LCStatus>("idle");
@@ -437,9 +449,17 @@ function LoginCheckerPanel({
 
     const accumulated: LCResult[] = [];
 
+    const proxies = proxyText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("http") || l.startsWith("socks"));
+
     const triggerComplete = () => {
       if (onComplete && accumulated.length > 0) {
         onComplete([...accumulated]);
+      }
+      if (soundEnabled && onPlayChime) {
+        onPlayChime();
       }
     };
 
@@ -447,7 +467,7 @@ function LoginCheckerPanel({
       const response = await fetch("/api/login-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pairs, workers, delay: delay * 1000 }),
+        body: JSON.stringify({ pairs, workers, delay: delay * 1000, proxies: proxies.length ? proxies : undefined }),
         credentials: "include",
         signal: controller.signal,
       });
@@ -560,6 +580,30 @@ function LoginCheckerPanel({
               </div>
               <input type="range" min={0} max={5} step={0.5} value={delay} onChange={(e) => setDelay(Number(e.target.value))}
                 className="w-full accent-purple-500" />
+            </div>
+
+            {/* Proxy section */}
+            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-2">
+              <button
+                onClick={() => setShowProxies((v) => !v)}
+                className="flex items-center justify-between w-full text-[10px] text-slate-500 uppercase tracking-wider">
+                <span className="flex items-center gap-1.5"><Wifi className="h-3 w-3" /> Proxies (optional)</span>
+                <span className={proxyText.trim() ? "text-cyan-400" : "text-slate-600"}>
+                  {proxyText.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length || "off"}
+                </span>
+              </button>
+              {showProxies && (
+                <>
+                  <textarea
+                    value={proxyText}
+                    onChange={(e) => setProxyText(e.target.value)}
+                    placeholder={"http://user:pass@host:port\nsocks5://host:port\n(one proxy per line)"}
+                    rows={4}
+                    className="w-full bg-[#070b16] border border-[#1a2540] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-lg px-3 py-2.5 outline-none focus:border-purple-500/50 resize-none"
+                  />
+                  <div className="text-[9px] text-slate-600">Proxies rotate round-robin across workers.</div>
+                </>
+              )}
             </div>
 
             <div className="bg-[#0c1122] rounded-xl border border-purple-500/20 p-3">
@@ -743,8 +787,9 @@ const TAG_OPTIONS = [
   { label: "Skip", color: "bg-slate-500 text-white" },
 ];
 
-function tagColor(tag: string | null): string {
-  const found = TAG_OPTIONS.find((t) => t.label === tag);
+function tagColor(tag: string | null, customTags?: { label: string; color: string }[]): string {
+  const allTags = [...TAG_OPTIONS, ...(customTags ?? [])];
+  const found = allTags.find((t) => t.label === tag);
   return found ? found.color : "bg-purple-600 text-white";
 }
 
@@ -752,6 +797,40 @@ function fontClass(size: "sm" | "base" | "lg"): string {
   if (size === "base") return "text-base";
   if (size === "lg") return "text-lg";
   return "text-sm";
+}
+
+function timeAgo(dateVal: string | Date | null | undefined): string {
+  if (!dateVal) return "";
+  const diff = Date.now() - new Date(dateVal).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return "today";
+  if (days === 1) return "1d ago";
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
+
+function playChime(): void {
+  try {
+    const ctx = new AudioContext();
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const t = ctx.currentTime + i * 0.12;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.start(t);
+      osc.stop(t + 0.26);
+    });
+    setTimeout(() => ctx.close(), 2000);
+  } catch {}
 }
 
 export default function Dashboard() {
@@ -805,6 +884,16 @@ export default function Dashboard() {
   const [showValidator, setShowValidator] = useState(false);
   const [showLoginChecker, setShowLoginChecker] = useState(false);
   const [loginCheckerPrefill, setLoginCheckerPrefill] = useState<string | undefined>(undefined);
+  const [customTags, setCustomTags] = useState<{ label: string; color: string }[]>(() => {
+    try { return JSON.parse(localStorage.getItem("fb_custom_tags") ?? "[]"); } catch { return []; }
+  });
+  const [newCustomTagInput, setNewCustomTagInput] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    try { return localStorage.getItem("fb_sound_enabled") !== "false"; } catch { return true; }
+  });
+  const [pwaPrompt, setPwaPrompt] = useState<{ prompt: () => void } | null>(null);
+  const [streak, setStreak] = useState(0);
+  const [checkedToday, setCheckedToday] = useState(0);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [showBatchTagPicker, setShowBatchTagPicker] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -1056,6 +1145,37 @@ export default function Dashboard() {
   }, [fetchProfile, toast]);
 
   useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setPwaPrompt(e as unknown as { prompt: () => void });
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!allItems.length) return;
+    const today = new Date().toDateString();
+    const todayCount = allItems.filter((i) => i.visitedAt && new Date(i.visitedAt).toDateString() === today).length;
+    setCheckedToday(todayCount);
+
+    const dateSets = new Set(allItems.filter((i) => i.visitedAt).map((i) => new Date(i.visitedAt!).toDateString()));
+    let s = 0;
+    const d = new Date();
+    while (dateSets.has(d.toDateString())) {
+      s++;
+      d.setDate(d.getDate() - 1);
+    }
+    setStreak(s);
+    if (s > 0) {
+      try {
+        const key = "fb_last_active";
+        localStorage.setItem(key, today);
+      } catch {}
+    }
+  }, [allItems]);
+
+  useEffect(() => {
     if (!showCharts) return;
     fetch("/api/facebook-ids/tag-stats", { credentials: "include" })
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
@@ -1072,6 +1192,10 @@ export default function Dashboard() {
   }, [showCharts, chartPeriod, idsData]);
 
   const allItems = idsData?.items ?? [];
+  const allTagsWithCustom = useMemo(
+    () => [...TAG_OPTIONS, { label: "Dead", color: "bg-red-700 text-white" }, ...customTags],
+    [customTags],
+  );
 
   function parseFollowerNum(s: string | null): number {
     if (!s) return -1;
@@ -1111,8 +1235,8 @@ export default function Dashboard() {
       items = items.filter((i) => i.tag === tagFilter);
     }
     switch (sortMode) {
-      case "oldest": items.sort((a, b) => a.id - b.id); break;
-      case "newest": items.sort((a, b) => b.id - a.id); break;
+      case "oldest": items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); break;
+      case "newest": items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break;
       case "checked": items.sort((a, b) => (b.visited ? 1 : 0) - (a.visited ? 1 : 0)); break;
       case "unchecked": items.sort((a, b) => (a.visited ? 1 : 0) - (b.visited ? 1 : 0)); break;
       case "saved": items.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)); break;
@@ -1303,6 +1427,16 @@ export default function Dashboard() {
         <span className="font-bold text-sm text-white flex-1 truncate">
           FB UID Manager Pro <span className="text-cyan-400">v2</span>
         </span>
+        {streak > 0 && (
+          <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
+            🔥 {streak}d
+          </span>
+        )}
+        {checkedToday > 0 && (
+          <span className="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
+            +{checkedToday}
+          </span>
+        )}
         {total > 0 && (
           <span className="text-[10px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded-full font-bold">
             {checkedPct}%
@@ -1450,6 +1584,79 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+          {/* Sound notifications */}
+          <div className="flex items-center gap-2">
+            {soundEnabled ? <Bell className="h-3.5 w-3.5 text-slate-500 shrink-0" /> : <BellOff className="h-3.5 w-3.5 text-slate-600 shrink-0" />}
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">Sounds</span>
+            <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); try { localStorage.setItem("fb_sound_enabled", String(next)); } catch {} if (next) playChime(); }}
+              className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
+                ${soundEnabled ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+              {soundEnabled ? "On" : "Off"}
+            </button>
+          </div>
+          {/* PWA install */}
+          {pwaPrompt && (
+            <div className="flex items-center gap-2">
+              <Smartphone className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">App</span>
+              <button onClick={() => { pwaPrompt.prompt(); setPwaPrompt(null); }}
+                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20 transition-colors">
+                📲 Add to Home Screen
+              </button>
+            </div>
+          )}
+          {/* Manage Tags */}
+          <div className="border-t border-[#1a2540] pt-3 space-y-2">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Tag className="h-3 w-3" /> Manage Tags
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {customTags.map((t, i) => (
+                <span key={i} className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${t.color}`}>
+                  {t.label}
+                  <button onClick={() => {
+                    const next = customTags.filter((_, idx) => idx !== i);
+                    setCustomTags(next);
+                    try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
+                  }} className="hover:opacity-70 ml-0.5">×</button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-1.5">
+              <input
+                value={newCustomTagInput}
+                onChange={(e) => setNewCustomTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newCustomTagInput.trim()) {
+                    const label = newCustomTagInput.trim().slice(0, 20);
+                    if (!allTagsWithCustom.find((t) => t.label === label)) {
+                      const next = [...customTags, { label, color: "bg-purple-600 text-white" }];
+                      setCustomTags(next);
+                      try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
+                    }
+                    setNewCustomTagInput("");
+                  }
+                }}
+                placeholder="New tag name…"
+                className="flex-1 bg-[#070b16] border border-[#1a2540] text-white text-[11px] px-2 py-1 rounded-lg outline-none focus:border-cyan-500/50 placeholder-slate-700"
+              />
+              <button
+                onClick={() => {
+                  const label = newCustomTagInput.trim().slice(0, 20);
+                  if (label && !allTagsWithCustom.find((t) => t.label === label)) {
+                    const next = [...customTags, { label, color: "bg-purple-600 text-white" }];
+                    setCustomTags(next);
+                    try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
+                  }
+                  setNewCustomTagInput("");
+                }}
+                disabled={!newCustomTagInput.trim()}
+                className="text-[10px] px-2.5 py-1 bg-cyan-500 hover:bg-cyan-400 text-[#070b16] font-bold rounded-lg disabled:opacity-40 transition-colors">
+                Add
+              </button>
+            </div>
+            <div className="text-[9px] text-slate-600">Press Enter or click Add. Tags appear in all pickers.</div>
+          </div>
         </div>
       )}
 
@@ -1479,7 +1686,7 @@ export default function Dashboard() {
           </div>
           {showBatchTagPicker && (
             <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-[#1a2540]">
-              {[...TAG_OPTIONS, { label: "Dead", color: "bg-red-700 text-white" }].map(({ label, color }) => (
+              {allTagsWithCustom.map(({ label, color }) => (
                 <button key={label} onClick={() => {
                   selectedItems.forEach((i) => updateMutation.mutate({ id: i.id, data: { tag: label } }));
                   setShowBatchTagPicker(false); setSelected(new Set());
@@ -1678,6 +1885,48 @@ export default function Dashboard() {
                 </div>
               )}
 
+              {/* Pie: Login Status Distribution */}
+              {(() => {
+                const lsItems = allItems.filter((i) => i.loginStatus);
+                if (lsItems.length === 0) return null;
+                const lsCounts = lsItems.reduce<Record<string, number>>((acc, i) => {
+                  const k = i.loginStatus ?? "unknown";
+                  acc[k] = (acc[k] ?? 0) + 1;
+                  return acc;
+                }, {});
+                const lsColors: Record<string, string> = { live: "#22c55e", dead: "#ef4444", checkpoint: "#f59e0b", "2fa": "#3b82f6", locked: "#f97316", disabled: "#64748b", wrongpass: "#ec4899" };
+                const lsData = Object.entries(lsCounts).map(([k, v]) => ({ name: k.toUpperCase(), value: v, fill: lsColors[k] ?? "#8b5cf6" }));
+                const lastChecked = allItems.map((i) => i.lastChecked).filter(Boolean).sort().at(-1);
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Login Status</div>
+                      {lastChecked && <span className="text-[9px] text-slate-600">last checked {timeAgo(lastChecked)}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ResponsiveContainer width="55%" height={120}>
+                        <PieChart>
+                          <Pie data={lsData} cx="50%" cy="50%" innerRadius={30} outerRadius={55} paddingAngle={3} dataKey="value">
+                            {lsData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex flex-col gap-1 flex-1">
+                        {lsData.map((d) => (
+                          <div key={d.name} className="flex items-center gap-1.5 text-[10px]">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.fill }} />
+                            <span className="text-slate-400 flex-1">{d.name}</span>
+                            <span className="font-bold text-slate-300">{d.value}</span>
+                          </div>
+                        ))}
+                        <div className="text-[9px] text-slate-600 mt-0.5">{lsItems.length} total checked</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Bar: Activity chart with period toggle */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -1795,7 +2044,7 @@ export default function Dashboard() {
 
         {/* Tag quick-filter chips */}
         {(() => {
-          const allTagCounts = [...TAG_OPTIONS, { label: "Dead", color: "bg-red-700 text-white" }]
+          const allTagCounts = allTagsWithCustom
             .map(({ label, color }) => ({ label, color, cnt: allItems.filter((i) => i.tag === label).length }))
             .filter(({ cnt }) => cnt > 0);
           if (allTagCounts.length === 0) return null;
@@ -1980,8 +2229,11 @@ export default function Dashboard() {
                   {item.password && (
                     <div className="flex items-center gap-0.5 mt-0.5">
                       <Key className="h-2 w-2 text-yellow-400 shrink-0" />
-                      <span className="text-[10px] font-mono text-yellow-400/70 truncate">{item.password}</span>
+                      <span className="text-[10px] font-mono text-yellow-400/70 truncate">{showPasswords ? item.password : "••••••"}</span>
                     </div>
+                  )}
+                  {timeAgo(item.createdAt) && (
+                    <div className="text-[8px] text-slate-700 mt-0.5">{timeAgo(item.createdAt)}</div>
                   )}
                   <div className="flex gap-1 mt-1.5 flex-wrap items-center">
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
@@ -2227,6 +2479,9 @@ export default function Dashboard() {
                       className="accent-cyan-500 h-3.5 w-3.5 shrink-0" />
                     <span className="text-[10px] text-slate-600 shrink-0 w-4 text-right">{idx + 1}</span>
                     <span className="text-[10px] text-slate-500 shrink-0">UID:</span>
+                    {timeAgo(item.createdAt) && (
+                      <span className="text-[9px] text-slate-700 ml-auto shrink-0">{timeAgo(item.createdAt)}</span>
+                    )}
                     <a
                       href={`https://facebook.com/${item.uid}`}
                       target="_blank"
@@ -2336,7 +2591,7 @@ export default function Dashboard() {
                   {/* Tag picker */}
                   {showTagPicker === item.id && (
                     <div className="px-3 pb-2 flex flex-wrap gap-1.5">
-                      {TAG_OPTIONS.map((t) => (
+                      {allTagsWithCustom.map((t) => (
                         <button key={t.label} onClick={() => setTag(item.id, item.tag === t.label ? null : t.label)}
                           className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition-all
                             ${item.tag === t.label ? "ring-2 ring-white/60 scale-105" : "opacity-80 hover:opacity-100"} ${t.color}`}>
@@ -2505,6 +2760,8 @@ export default function Dashboard() {
           onClose={() => setShowValidator(false)}
           onImportLive={handleImportLive}
           onImportDead={handleImportDead}
+          soundEnabled={soundEnabled}
+          onPlayChime={playChime}
         />
       )}
 
@@ -2513,6 +2770,8 @@ export default function Dashboard() {
         <LoginCheckerPanel
           onClose={() => setShowLoginChecker(false)}
           prefillPairs={loginCheckerPrefill}
+          soundEnabled={soundEnabled}
+          onPlayChime={playChime}
           onComplete={(results) => {
             results.forEach((r) => {
               const item = allItems.find((i) => i.uid === r.uid);
@@ -2572,10 +2831,23 @@ export default function Dashboard() {
                 }} />
               </label>
             </div>
-            <Textarea autoFocus
-              className="min-h-[150px] font-mono text-sm bg-[#070b16] border-[#1a2540] text-slate-200 placeholder-slate-700 focus-visible:ring-cyan-500 resize-none"
-              placeholder={"Paste UIDs here. One per line.\nFormat:  uid   OR   uid|password"}
-              value={importText} onChange={(e) => setImportText(e.target.value)} />
+            <div className="relative">
+              <Textarea autoFocus
+                className="min-h-[150px] font-mono text-sm bg-[#070b16] border-[#1a2540] text-slate-200 placeholder-slate-700 focus-visible:ring-cyan-500 resize-none"
+                placeholder={"Paste UIDs here. One per line.\nFormat:  uid   OR   uid|password"}
+                value={importText} onChange={(e) => setImportText(e.target.value)} />
+              <button
+                onClick={async () => {
+                  try {
+                    const text = await navigator.clipboard.readText();
+                    setImportText((prev) => prev ? prev + "\n" + text : text);
+                  } catch {}
+                }}
+                title="Paste from clipboard"
+                className="absolute top-2 right-2 text-[10px] bg-slate-700/80 hover:bg-slate-600/90 text-slate-300 hover:text-white px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                <Clipboard className="h-3 w-3" /> Paste
+              </button>
+            </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-600">
                 {importText.split("\n").filter((l) => l.trim()).length} lines · deduplicated on import

@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { ProxyAgent, fetch as undiciFetch } from "undici";
 
 interface AndroidDevice {
   model: string;
@@ -119,7 +120,7 @@ export interface LoginResult {
   errorSubcode?: number;
 }
 
-export async function checkFbLogin(uid: string, password: string): Promise<LoginResult> {
+export async function checkFbLogin(uid: string, password: string, proxyUrl?: string): Promise<LoginResult> {
   const device = randomFbDevice();
 
   const params = new URLSearchParams();
@@ -145,23 +146,37 @@ export async function checkFbLogin(uid: string, password: string): Promise<Login
   params.append("fb_api_caller_class", "com.facebook.account.login.protocol.Fb4aAuthHandler");
 
   try {
-    const res = await fetch("https://graph.facebook.com/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": device.userAgent,
-        "Host": "graph.facebook.com",
-        "X-FB-Net-HNI": String(randInt(20000, 40000)),
-        "X-FB-SIM-HNI": String(randInt(20000, 40000)),
-        "X-FB-Connection-Type": "MOBILE.LTE",
-        "X-Tigon-Is-Retry": "False",
-        "X-FB-HTTP-Engine": "Liger",
-        "Connection": "keep-alive",
-        "Accept-Language": device.locale.replace("_", "-"),
-      },
-      body: params.toString(),
-      signal: AbortSignal.timeout(15_000),
-    });
+    const fetchHeaders = {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": device.userAgent,
+      "Host": "graph.facebook.com",
+      "X-FB-Net-HNI": String(randInt(20000, 40000)),
+      "X-FB-SIM-HNI": String(randInt(20000, 40000)),
+      "X-FB-Connection-Type": "MOBILE.LTE",
+      "X-Tigon-Is-Retry": "False",
+      "X-FB-HTTP-Engine": "Liger",
+      "Connection": "keep-alive",
+      "Accept-Language": device.locale.replace("_", "-"),
+    };
+
+    let res: Response;
+    if (proxyUrl) {
+      const dispatcher = new ProxyAgent(proxyUrl);
+      res = await undiciFetch("https://graph.facebook.com/auth/login", {
+        method: "POST",
+        headers: fetchHeaders,
+        body: params.toString(),
+        signal: AbortSignal.timeout(15_000),
+        dispatcher,
+      }) as unknown as Response;
+    } else {
+      res = await fetch("https://graph.facebook.com/auth/login", {
+        method: "POST",
+        headers: fetchHeaders,
+        body: params.toString(),
+        signal: AbortSignal.timeout(15_000),
+      });
+    }
 
     const text = await res.text();
     let json: Record<string, unknown>;
