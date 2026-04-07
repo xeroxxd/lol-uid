@@ -22,7 +22,8 @@ import {
   ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
   FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
   Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon, Save,
-  BookmarkCheck, CheckCircle, RefreshCw, RotateCcw,
+  BookmarkCheck, CheckCircle, RefreshCw, RotateCcw, Eye, EyeOff, TrendingUp,
+  Crown, Flame, Wifi, WifiOff, Sparkles, Filter, AlarmClock,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
@@ -436,6 +437,9 @@ export default function Dashboard() {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [showBatchTagPicker, setShowBatchTagPicker] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [fetchingUids, setFetchingUids] = useState<Set<string>>(new Set());
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [retryingAll, setRetryingAll] = useState(false);
   const [swipedId, setSwipedId] = useState<number | null>(null);
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
@@ -564,6 +568,7 @@ export default function Dashboard() {
   const fetchProfile = useCallback(async (uid: string) => {
     if (fetchedUids.current.has(uid)) return;
     fetchedUids.current.add(uid);
+    setFetchingUids((prev) => new Set(prev).add(uid));
     try {
       const res = await fetch(`/api/profile-lookup?uid=${encodeURIComponent(uid)}`, {
         credentials: "include",
@@ -581,6 +586,8 @@ export default function Dashboard() {
       }
     } catch {
       setFailedUids((prev) => new Set(prev).add(uid));
+    } finally {
+      setFetchingUids((prev) => { const next = new Set(prev); next.delete(uid); return next; });
     }
   }, []);
 
@@ -616,6 +623,45 @@ export default function Dashboard() {
       if (longPressTimer.current) clearTimeout(longPressTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShowSearch((v) => !v);
+        setShowSort(false); setShowCopyFmt(false); setShowSettings(false);
+      }
+      if (e.key === "Escape") {
+        setShowSearch(false); setShowSort(false); setShowCopyFmt(false);
+        setShowSettings(false); setSwipedId(null);
+        setSelected(new Set()); setShowBatchTagPicker(false);
+        setEditingNote(null); setShowTagPicker(null);
+      }
+      if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setSelected((prev) => prev.size === filteredItems.length ? new Set() : new Set(filteredItems.map((i) => i.id)));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [filteredItems]);
+
+  const retryAllFailed = useCallback(async () => {
+    if (!failedUids.size) return;
+    setRetryingAll(true);
+    const uids = [...failedUids];
+    for (const uid of uids) {
+      fetchedUids.current.delete(uid);
+    }
+    setFailedUids(new Set());
+    uids.forEach((uid, idx) => {
+      setTimeout(() => fetchProfile(uid), idx * 400);
+    });
+    setTimeout(() => setRetryingAll(false), uids.length * 400 + 1000);
+    toast({ description: `🔄 Retrying ${uids.length} failed profiles…` });
+  }, [failedUids, fetchProfile, toast]);
 
   const incrementVisit = useCallback((uid: string) => {
     try {
@@ -744,6 +790,24 @@ export default function Dashboard() {
   const saved = statsData?.pinned ?? 0;
   const checkedPct = total > 0 ? Math.round((checked / total) * 100) : 0;
 
+  function followerTier(count: string | null): { label: string; icon: string; cls: string } | null {
+    const n = parseFollowerNum(count);
+    if (n >= 1_000_000) return { label: "Mega", icon: "👑", cls: "bg-yellow-500 text-black" };
+    if (n >= 100_000)  return { label: "Macro", icon: "🔥", cls: "bg-purple-600 text-white" };
+    if (n >= 10_000)   return { label: "Micro", icon: "⭐", cls: "bg-blue-600 text-white" };
+    if (n >= 1_000)    return { label: "Nano",  icon: "✦",  cls: "bg-slate-600 text-slate-200" };
+    return null;
+  }
+
+  const downloadJson = (items: typeof allItems, filename: string) => {
+    const data = items.map((i) => ({
+      uid: i.uid, password: i.password ?? null, note: i.note ?? null,
+      tag: i.tag ?? null, saved: i.pinned, checked: i.visited,
+      profile: profileData.get(i.uid) ?? null,
+    }));
+    downloadFile(JSON.stringify(data, null, 2), filename);
+  };
+
   const formatText = (uid: string, password: string | null): string => {
     if (copyFormat === "uid") return uid;
     if (copyFormat === "pass") return password ?? uid;
@@ -852,12 +916,17 @@ export default function Dashboard() {
           </span>
         )}
         <div className="flex items-center gap-0.5">
+          <button onClick={() => setShowPasswords((v) => !v)}
+            className={`p-1.5 rounded hover:bg-white/10 transition-colors ${showPasswords ? "text-yellow-400" : "text-slate-400 hover:text-white"}`}
+            title={showPasswords ? "Hide passwords" : "Show passwords"}>
+            {showPasswords ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </button>
           <button onClick={() => { setShowCopyFmt((v) => !v); setShowSort(false); setShowSearch(false); }}
             className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Copy format">
             <Copy className="h-4 w-4" />
           </button>
           <button onClick={() => { setShowSearch((v) => !v); setShowSort(false); setShowCopyFmt(false); }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Search">
+            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Search [/]">
             <Search className="h-4 w-4" />
           </button>
           <button onClick={() => { setShowSort((v) => !v); setShowSearch(false); setShowCopyFmt(false); setShowSettings(false); }}
@@ -1276,10 +1345,32 @@ export default function Dashboard() {
                     className="text-[10px] bg-[#1a2540] hover:bg-[#243050] text-slate-300 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1">
                     <Download className="h-2.5 w-2.5" /> .csv
                   </button>
+                  <button onClick={() => downloadJson(items, `${type}.json`)}
+                    className="text-[10px] bg-emerald-900/40 hover:bg-emerald-800/50 text-emerald-300 hover:text-emerald-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                    <Download className="h-2.5 w-2.5" /> .json
+                  </button>
                 </div>
               </div>
             );
           })}
+          {/* Export All JSON */}
+          <div className="flex items-center px-3 py-2.5 gap-2">
+            <span className="text-xs text-slate-300 flex-1 font-medium">🌐 All IDs + Profiles
+              <span className="ml-1.5 text-[10px] text-slate-600">({allItems.length})</span>
+            </span>
+            <div className="flex gap-1.5">
+              <button onClick={() => downloadJson(allItems, "all-facebook-ids.json")}
+                className="text-[10px] bg-cyan-900/40 hover:bg-cyan-800/50 text-cyan-300 hover:text-cyan-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" /> Full JSON
+              </button>
+              {(() => { const igs = allItems.filter(i => profileData.get(i.uid)?.instagramUsername).map(i => profileData.get(i.uid)!.instagramUsername); return igs.length > 0 ? (
+                <button onClick={() => { copy(igs.join("\n"), `${igs.length} IG usernames copied!`); }}
+                  className="text-[10px] bg-pink-900/40 hover:bg-pink-800/50 text-pink-300 hover:text-pink-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                  <Copy className="h-2.5 w-2.5" /> All IGs ({igs.length})
+                </button>
+              ) : null; })()}
+            </div>
+          </div>
         </div>
 
         {/* Filter tabs */}
@@ -1326,6 +1417,34 @@ export default function Dashboard() {
           );
         })()}
 
+        {/* Retry all failed banner */}
+        {failedUids.size > 0 && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-orange-900/20 border border-orange-700/30 rounded-xl">
+            <WifiOff className="h-3.5 w-3.5 text-orange-400 shrink-0" />
+            <span className="text-[11px] text-orange-300 flex-1">{failedUids.size} profiles failed to load</span>
+            <button onClick={retryAllFailed} disabled={retryingAll}
+              className="text-[10px] bg-orange-700/50 hover:bg-orange-600/60 text-orange-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60">
+              {retryingAll ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <RotateCcw className="h-2.5 w-2.5" />}
+              Retry All
+            </button>
+          </div>
+        )}
+
+        {/* Copy all IGs banner (when IG filter active) */}
+        {filterMode === "hasig" && (() => {
+          const igs = filteredItems.map(i => profileData.get(i.uid)?.instagramUsername).filter(Boolean) as string[];
+          return igs.length > 0 ? (
+            <div className="flex items-center gap-2 px-3 py-2 bg-pink-900/20 border border-pink-700/30 rounded-xl">
+              <svg className="h-3.5 w-3.5 text-pink-400 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+              <span className="text-[11px] text-pink-300 flex-1">{igs.length} Instagram usernames</span>
+              <button onClick={() => copy(igs.join("\n"), `${igs.length} IG usernames copied!`)}
+                className="text-[10px] bg-pink-700/50 hover:bg-pink-600/60 text-pink-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                <Copy className="h-2.5 w-2.5" /> Copy All IGs
+              </button>
+            </div>
+          ) : null;
+        })()}
+
         {/* Entry count row */}
         <div className="flex items-center gap-2 px-0.5">
           <label className="flex items-center gap-1.5 text-xs text-slate-500 select-none cursor-pointer">
@@ -1333,7 +1452,9 @@ export default function Dashboard() {
               onChange={toggleSelectAll} className="accent-cyan-500 h-3.5 w-3.5" />
             All
           </label>
-          <span className="text-xs text-slate-600 flex-1">{filteredItems.length} entries</span>
+          <span className="text-xs text-slate-600 flex-1">{filteredItems.length} entries
+            {fetchingUids.size > 0 && <span className="ml-1.5 text-cyan-600/60 text-[10px]">({fetchingUids.size} loading…)</span>}
+          </span>
           {selected.size > 0 && <span className="text-xs text-cyan-400 font-bold">{selected.size} selected</span>}
           <button onClick={() => topRef.current?.scrollIntoView({ behavior: "smooth" })}
             className="text-[10px] text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
@@ -1355,8 +1476,26 @@ export default function Dashboard() {
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-slate-600 gap-3">
-              <Shield className="h-10 w-10 opacity-15" />
-              <p className="text-sm">{searchQuery || filterMode !== "all" ? "No matches." : "No IDs yet. Tap + New to import."}</p>
+              {searchQuery || filterMode !== "all" || tagFilter ? (
+                <>
+                  <Search className="h-10 w-10 opacity-20" />
+                  <p className="text-sm text-slate-500">No results found.</p>
+                  <button onClick={() => { setFilterMode("all"); setTagFilter(null); setSearchQuery(""); setShowSearch(false); }}
+                    className="text-[11px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-4 py-1.5 rounded-full transition-colors">
+                    Clear all filters
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-12 w-12 opacity-15 text-cyan-400" />
+                  <p className="text-base font-semibold text-slate-400">No IDs yet</p>
+                  <p className="text-xs text-slate-600 text-center max-w-[200px]">Import Facebook IDs to get started. Auto-fetch profiles on import.</p>
+                  <button onClick={() => setShowImport(true)}
+                    className="mt-1 flex items-center gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-[#070b16] text-xs font-bold px-4 py-2 rounded-xl transition-colors">
+                    <Plus className="h-3.5 w-3.5" /> Import IDs
+                  </button>
+                </>
+              )}
             </div>
           ) : viewMode === "compact" ? (
             /* Compact mode: 2-column dense grid */
@@ -1548,6 +1687,18 @@ export default function Dashboard() {
                     </div>
                   )}
 
+                  {/* Profile loading skeleton */}
+                  {fetchingUids.has(item.uid) && !profile && (
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-700/20 animate-pulse bg-slate-900/30">
+                      <div className="w-8 h-8 rounded-full bg-slate-700/50 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-2.5 bg-slate-700/50 rounded-full w-28" />
+                        <div className="h-2 bg-slate-700/30 rounded-full w-20" />
+                      </div>
+                      <Loader2 className="h-3 w-3 text-cyan-600/50 animate-spin shrink-0" />
+                    </div>
+                  )}
+
                   {/* Profile info bar (AnimatePresence) */}
                   <AnimatePresence>
                     {profile && (
@@ -1587,6 +1738,11 @@ export default function Dashboard() {
                                     <User className="h-2 w-2" />{profile.followerCount}
                                   </span>
                                 )}
+                                {(() => { const t = followerTier(profile.followerCount ?? null); return t ? (
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none ${t.cls}`}>
+                                    {t.icon} {t.label}
+                                  </span>
+                                ) : null; })()}
                                 {profile.nationality && (
                                   <span className="text-orange-300/60 text-[10px]">📍 {profile.nationality}</span>
                                 )}
@@ -1623,6 +1779,12 @@ export default function Dashboard() {
                                   <ExternalLink className="h-2.5 w-2.5" /> IG
                                 </a>
                               )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); retryProfile(item.uid); }}
+                                title="Re-fetch profile"
+                                className="flex items-center gap-0.5 text-[9px] bg-slate-800/50 hover:bg-slate-700/60 text-slate-400 hover:text-cyan-300 px-1.5 py-0.5 rounded transition-colors">
+                                <RefreshCw className="h-2.5 w-2.5" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1687,7 +1849,7 @@ export default function Dashboard() {
                     <span className="text-[10px] text-slate-500 shrink-0">Pass:</span>
                     {item.password ? (
                       <>
-                        <span className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate text-yellow-400/90`}>
+                        <span className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate text-yellow-400/90 transition-all duration-200 ${showPasswords ? "" : "blur-sm select-none"}`}>
                           {item.password}
                         </span>
                         <button
@@ -1788,6 +1950,14 @@ export default function Dashboard() {
                         ${item.tag ? "bg-orange-700/50 text-orange-200" : "bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-orange-300"}`}>
                       <Tag className="h-3 w-3" />Tag
                     </button>
+                    {profile?.instagramUsername && (
+                      <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 text-[10px] font-semibold py-1.5 rounded-lg bg-pink-900/40 hover:bg-pink-800/60 text-pink-300 hover:text-pink-100 transition-colors flex items-center justify-center gap-0.5">
+                        <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        IG
+                      </a>
+                    )}
                   </div>
                 </div>
               );
