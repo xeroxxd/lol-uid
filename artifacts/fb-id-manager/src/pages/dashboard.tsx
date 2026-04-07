@@ -392,7 +392,7 @@ function LoginCheckerPanel({
   const [activeTab, setActiveTab] = useState<LoginStatus | "all">("all");
   const abortRef = useRef<AbortController | null>(null);
 
-  const pairCount = inputText.split("\n").filter((l) => l.trim() && l.includes("|")).length;
+  const pairCount = inputText.split("\n").filter((l) => { const t = l.trim(); return t && (t.includes("|") || t.includes(":")); }).length;
   const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
 
   const countsByStatus = useMemo(() => {
@@ -414,8 +414,14 @@ function LoginCheckerPanel({
       .map((l) => l.trim())
       .filter(Boolean)
       .map((l) => {
-        const parts = l.split("|");
-        return { uid: parts[0]?.trim() ?? "", password: parts.slice(1).join("|").trim() };
+        if (l.includes("|")) {
+          const parts = l.split("|");
+          return { uid: parts[0]?.trim() ?? "", password: parts.slice(1).join("|").trim() };
+        } else {
+          const colonIdx = l.indexOf(":");
+          if (colonIdx === -1) return { uid: l.trim(), password: "" };
+          return { uid: l.slice(0, colonIdx).trim(), password: l.slice(colonIdx + 1).trim() };
+        }
       })
       .filter((p) => p.uid && p.password);
 
@@ -519,7 +525,7 @@ function LoginCheckerPanel({
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder={"100044388870940|mypassword123\n100012345678|another_pass\n..."}
+                placeholder={"100044388870940|mypassword123\n100012345678:another_pass\n(uid|pass or uid:pass)"}
                 rows={8}
                 className="w-full bg-[#070b16] border border-[#1a2540] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-lg px-3 py-2.5 outline-none focus:border-purple-500/50 resize-none"
               />
@@ -1301,11 +1307,14 @@ export default function Dashboard() {
             <Settings className="h-4 w-4" />
           </button>
           <button onClick={() => {
-              const pairs = allItems.filter((i) => i.password).map((i) => `${i.uid}|${i.password}`).join("\n");
+              const source = selected.size > 0
+                ? filteredItems.filter((i) => selected.has(i.id) && i.password)
+                : allItems.filter((i) => i.password);
+              const pairs = source.map((i) => `${i.uid}|${i.password}`).join("\n");
               setLoginCheckerPrefill(pairs);
               setShowLoginChecker(true);
             }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-purple-400 transition-colors" title="Login Checker">
+            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-purple-400 transition-colors" title={selected.size > 0 ? `Login Checker (${selected.size} selected)` : "Login Checker (all)"}>
             <Shield className="h-4 w-4" />
           </button>
           <button onClick={logout} className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Logout">
@@ -2483,15 +2492,18 @@ export default function Dashboard() {
           onComplete={(results) => {
             results.forEach((r) => {
               const item = allItems.find((i) => i.uid === r.uid);
-              if (item) {
-                updateMutation.mutate({
-                  id: item.id,
-                  data: {
-                    loginStatus: r.status,
-                    accessToken: r.accessToken ?? null,
-                  } as Parameters<typeof updateMutation.mutate>[0]["data"],
-                });
-              }
+              if (!item) return;
+              const isLive = r.status === "live";
+              const isDead = r.status === "dead" || r.status === "wrongpass" || r.status === "disabled";
+              updateMutation.mutate({
+                id: item.id,
+                data: {
+                  loginStatus: r.status,
+                  accessToken: r.accessToken ?? null,
+                  ...(isLive ? { visited: true } : {}),
+                  ...(isDead && !item.tag ? { tag: "Dead" } : {}),
+                } as Parameters<typeof updateMutation.mutate>[0]["data"],
+              });
             });
             queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
           }}
