@@ -378,6 +378,8 @@ interface LCResult {
   statusLabel: string;
   accessToken: string | null;
   proxy?: string | null;
+  errorCode?: number | null;
+  errorSubcode?: number | null;
 }
 
 function LoginCheckerPanel({
@@ -504,6 +506,8 @@ function LoginCheckerPanel({
                 statusLabel: evt.statusLabel as string,
                 accessToken: (evt.accessToken as string | null) ?? null,
                 proxy: (evt.proxy as string | null) ?? null,
+                errorCode: (evt.errorCode as number | null) ?? null,
+                errorSubcode: (evt.errorSubcode as number | null) ?? null,
               };
               accumulated.push(r);
               setResults((prev) => [r, ...prev]);
@@ -741,6 +745,11 @@ function LoginCheckerPanel({
                         {proxyLabel && (
                           <span className="text-[9px] bg-slate-700/60 text-slate-500 px-1 py-0.5 rounded font-mono">
                             🌐 {proxyLabel}
+                          </span>
+                        )}
+                        {r.status !== "live" && (r.errorCode || r.errorSubcode) && (
+                          <span className="text-[9px] bg-slate-800/70 text-slate-500 px-1 py-0.5 rounded font-mono" title="Facebook error code / subcode">
+                            err:{r.errorCode ?? "?"}{r.errorSubcode ? `/${r.errorSubcode}` : ""}
                           </span>
                         )}
                       </div>

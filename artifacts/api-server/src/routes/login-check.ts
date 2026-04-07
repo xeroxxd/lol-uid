@@ -132,6 +132,8 @@ router.post("/login-check", async (req: Request, res: Response) => {
           statusLabel: statusLabel[result.status],
           accessToken: result.accessToken,
           proxy: proxy ?? null,
+          errorCode: result.errorCode ?? null,
+          errorSubcode: result.errorSubcode ?? null,
           progress: processedCount,
           total,
         });

@@ -237,11 +237,27 @@ export async function checkFbLogin(uid: string, password: string, proxyUrl?: str
     try {
       json = JSON.parse(text) as Record<string, unknown>;
     } catch {
+      console.error("[fb-check] Non-JSON response from FB:", text.slice(0, 200));
       return { status: "dead", accessToken: null };
+    }
+
+    // Log the raw FB error so we can debug status detection
+    if (!json.access_token && json.error) {
+      const e = json.error as Record<string, unknown>;
+      console.log("[fb-check] uid=%s code=%s subcode=%s type=%s msg=%s",
+        uid,
+        e.code, e.error_subcode, e.type,
+        String(e.message ?? e.error_user_msg ?? "").slice(0, 120),
+      );
     }
 
     if (json.access_token && typeof json.access_token === "string") {
       return { status: "live", accessToken: json.access_token };
+    }
+
+    // session_cookies present → live even without access_token
+    if (json.session_cookies && Array.isArray(json.session_cookies) && json.session_cookies.length > 0) {
+      return { status: "live", accessToken: null };
     }
 
     const errObj = json.error as Record<string, unknown> | undefined;
@@ -252,51 +268,71 @@ export async function checkFbLogin(uid: string, password: string, proxyUrl?: str
     const code = Number(errObj.code ?? 0);
     const subcode = Number(errObj.error_subcode ?? 0);
     const msg = String(errObj.message ?? errObj.error_user_msg ?? "").toLowerCase();
-    const type = String(errObj.type ?? "").toLowerCase();
+    const userTitle = String((errObj as Record<string, unknown>).error_user_title ?? "").toLowerCase();
+    const combined = msg + " " + userTitle;
 
+    // ── Checkpoint / Identity review ────────────────────────────────────────
     if (
       subcode === 406 ||
-      msg.includes("checkpoint") ||
-      msg.includes("please review") ||
-      msg.includes("confirm your identity")
+      combined.includes("checkpoint") ||
+      combined.includes("please review") ||
+      combined.includes("confirm your identity") ||
+      combined.includes("verify your account")
     ) {
       return { status: "checkpoint", accessToken: null, errorCode: code, errorSubcode: subcode };
     }
 
+    // ── Two-factor authentication ───────────────────────────────────────────
     if (
       subcode === 464 ||
-      msg.includes("two_factor") ||
-      msg.includes("two factor") ||
-      msg.includes("confirmation code") ||
-      msg.includes("security code")
+      combined.includes("two_factor") ||
+      combined.includes("two factor") ||
+      combined.includes("two-factor") ||
+      combined.includes("confirmation code") ||
+      combined.includes("security code") ||
+      combined.includes("login approval")
     ) {
       return { status: "2fa", accessToken: null, errorCode: code, errorSubcode: subcode };
     }
 
+    // ── Locked / Suspicious activity ────────────────────────────────────────
     if (
-      msg.includes("locked") ||
-      msg.includes("suspicious") ||
-      msg.includes("temporarily blocked")
+      combined.includes("locked") ||
+      combined.includes("suspicious") ||
+      combined.includes("temporarily blocked") ||
+      combined.includes("unusual activity")
     ) {
       return { status: "locked", accessToken: null, errorCode: code, errorSubcode: subcode };
     }
 
+    // ── Account disabled / Removed ─────────────────────────────────────────
+    // Use specific error codes/subcodes — NOT the broad code 190 which also
+    // covers wrong-password and token errors.
     if (
-      code === 190 ||
-      msg.includes("disabled") ||
-      msg.includes("removed") ||
-      type.includes("oauthexception") && msg.includes("invalid")
+      code === 368 ||
+      (code === 190 && (subcode === 458 || subcode === 467)) ||
+      combined.includes("account has been disabled") ||
+      combined.includes("your account has been") ||
+      combined.includes("account was disabled") ||
+      combined.includes("account is disabled") ||
+      combined.includes("permanently removed") ||
+      combined.includes("has been removed")
     ) {
       return { status: "disabled", accessToken: null, errorCode: code, errorSubcode: subcode };
     }
 
+    // ── Wrong password / Bad credentials ───────────────────────────────────
     if (
+      code === 401 ||
       subcode === 460 ||
       subcode === 401 ||
-      msg.includes("wrong password") ||
-      msg.includes("incorrect password") ||
-      msg.includes("password you entered") ||
-      (code === 401 && subcode !== 406 && subcode !== 464)
+      subcode === 2444 ||
+      combined.includes("wrong password") ||
+      combined.includes("incorrect password") ||
+      combined.includes("password you entered") ||
+      combined.includes("invalid password") ||
+      combined.includes("password is incorrect") ||
+      combined.includes("entered an incorrect password")
     ) {
       return { status: "wrongpass", accessToken: null, errorCode: code, errorSubcode: subcode };
     }
