@@ -262,8 +262,8 @@ router.patch("/facebook-ids/:id", async (req: Request, res: Response) => {
   }
   if ("note" in bodyParsed.data) updates.note = bodyParsed.data.note ?? null;
   if ("tag" in bodyParsed.data) updates.tag = bodyParsed.data.tag ?? null;
-  if ("loginStatus" in bodyParsed.data) updates.loginStatus = (bodyParsed.data as Record<string, unknown>).loginStatus as string | null ?? null;
-  if ("accessToken" in bodyParsed.data) updates.accessToken = (bodyParsed.data as Record<string, unknown>).accessToken as string | null ?? null;
+  if ("loginStatus" in bodyParsed.data) updates.loginStatus = bodyParsed.data.loginStatus ?? null;
+  if ("accessToken" in bodyParsed.data) updates.accessToken = bodyParsed.data.accessToken ?? null;
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "No fields to update" });
@@ -291,6 +291,11 @@ router.patch("/facebook-ids/:id", async (req: Request, res: Response) => {
     note: item.note ?? null,
     tag: item.tag ?? null,
     createdAt: item.createdAt.toISOString(),
+    visitedAt: item.visitedAt ? item.visitedAt.toISOString() : null,
+    loginStatus: item.loginStatus ?? null,
+    accessToken: item.accessToken ?? null,
+    lastChecked: item.lastChecked ? item.lastChecked.toISOString() : null,
+    checkCount: item.checkCount ?? 0,
   });
 });
 

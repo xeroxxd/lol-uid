@@ -1010,14 +1010,10 @@ export default function Dashboard() {
         setSelected(new Set()); setShowBatchTagPicker(false);
         setEditingNote(null); setShowTagPicker(null);
       }
-      if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        setSelected((prev) => prev.size === filteredItems.length ? new Set() : new Set(filteredItems.map((i) => i.id)));
-      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [filteredItems]);
+  }, []);
 
   const retryAllFailed = useCallback(async () => {
     if (!failedUids.size) return;
@@ -1107,9 +1103,9 @@ export default function Dashboard() {
       case "hasig":       items = items.filter((i) => !!profileData.get(i.uid)?.instagramUsername); break;
       case "hasname":     items = items.filter((i) => !!profileData.get(i.uid)?.name); break;
       case "dead":        items = items.filter((i) => i.tag === "Dead"); break;
-      case "live":        items = items.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "live"); break;
-      case "checkpoint":  items = items.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "checkpoint"); break;
-      case "twofactor":   items = items.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "2fa"); break;
+      case "live":        items = items.filter((i) => i.loginStatus === "live"); break;
+      case "checkpoint":  items = items.filter((i) => i.loginStatus === "checkpoint"); break;
+      case "twofactor":   items = items.filter((i) => i.loginStatus === "2fa"); break;
     }
     if (tagFilter !== null) {
       items = items.filter((i) => i.tag === tagFilter);
@@ -1122,8 +1118,8 @@ export default function Dashboard() {
       case "saved": items.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)); break;
       case "alpha": items.sort((a, b) => a.uid.localeCompare(b.uid)); break;
       case "recent": items.sort((a, b) => {
-        const ta = (a as { visitedAt?: string | null }).visitedAt ? new Date((a as { visitedAt: string }).visitedAt).getTime() : 0;
-        const tb = (b as { visitedAt?: string | null }).visitedAt ? new Date((b as { visitedAt: string }).visitedAt).getTime() : 0;
+        const ta = a.visitedAt ? new Date(a.visitedAt).getTime() : 0;
+        const tb = b.visitedAt ? new Date(b.visitedAt).getTime() : 0;
         return tb - ta;
       }); break;
       case "name": items.sort((a, b) => {
@@ -1157,6 +1153,19 @@ export default function Dashboard() {
     });
     return () => timers.forEach(clearTimeout);
   }, [filteredItems, visibleCount, idsLoading, fetchProfile]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setSelected((prev) => prev.size === filteredItems.length ? new Set() : new Set(filteredItems.map((i) => i.id)));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [filteredItems]);
 
   const total = statsData?.total ?? 0;
   const checked = statsData?.visited ?? 0;
@@ -1237,7 +1246,7 @@ export default function Dashboard() {
     setSelected(new Set());
   };
   const bulkCopy = () => {
-    const text = selectedItems.map((i) => formatText(i.uid, i.password, (i as { accessToken?: string | null }).accessToken)).join("\n");
+    const text = selectedItems.map((i) => formatText(i.uid, i.password, i.accessToken)).join("\n");
     copy(text, `Copied ${selectedItems.length} items`);
   };
 
@@ -1252,7 +1261,7 @@ export default function Dashboard() {
   };
 
   const handleCopyAll = () => {
-    const text = (selected.size > 0 ? selectedItems : filteredItems).map((i) => formatText(i.uid, i.password, (i as { accessToken?: string | null }).accessToken)).join("\n");
+    const text = (selected.size > 0 ? selectedItems : filteredItems).map((i) => formatText(i.uid, i.password, i.accessToken)).join("\n");
     copy(text, `Copied ${selected.size > 0 ? selectedItems.length : filteredItems.length} IDs`);
   };
 
@@ -1267,9 +1276,9 @@ export default function Dashboard() {
   const igCount = allItems.filter((i) => !!profileData.get(i.uid)?.instagramUsername).length;
   const nameCount = allItems.filter((i) => !!profileData.get(i.uid)?.name).length;
   const deadCount = allItems.filter((i) => i.tag === "Dead").length;
-  const liveLoginCount = allItems.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "live").length;
-  const checkpointCount = allItems.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "checkpoint").length;
-  const twofaCount = allItems.filter((i) => (i as { loginStatus?: string | null }).loginStatus === "2fa").length;
+  const liveLoginCount = allItems.filter((i) => i.loginStatus === "live").length;
+  const checkpointCount = allItems.filter((i) => i.loginStatus === "checkpoint").length;
+  const twofaCount = allItems.filter((i) => i.loginStatus === "2fa").length;
 
   const filterTabs: { key: FilterMode; label: string; count: number }[] = [
     { key: "all",       label: "All",  count: allItems.length },
@@ -1722,7 +1731,7 @@ export default function Dashboard() {
             { label: "💾 Saved", type: "saved" as const },
           ].map(({ label, type }) => {
             const items = getBulk(type);
-            const text = items.map((i) => formatText(i.uid, i.password, (i as { accessToken?: string | null }).accessToken)).join("\n");
+            const text = items.map((i) => formatText(i.uid, i.password, i.accessToken)).join("\n");
             return (
               <div key={type} className="flex items-center px-3 py-2.5 gap-2">
                 <span className="text-xs text-slate-300 flex-1 font-medium">{label}
@@ -1956,14 +1965,14 @@ export default function Dashboard() {
                     {item.tag && <span className={`text-[8px] font-bold px-1 rounded ${tagColor(item.tag)}`}>{item.tag}</span>}
                     {item.pinned && <span className="text-[9px] text-green-400">💾</span>}
                     {(() => {
-                      const ls = (item as { loginStatus?: string | null }).loginStatus as LoginStatus | null | undefined;
+                      const ls = item.loginStatus as LoginStatus | null | undefined;
                       if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
                       const cfg = LOGIN_STATUS_CONFIG[ls];
                       return <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0`} title={cfg.label} />;
                     })()}
                   </div>
                   <button
-                    onClick={() => copy(formatText(item.uid, item.password, (item as { accessToken?: string | null }).accessToken), "Copied!")}
+                    onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")}
                     className={`font-mono block truncate text-left w-full transition-colors active:opacity-60 ${fontClass(fontSize)}
                       ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
                     {highlightText(item.uid, searchQuery)}
@@ -2056,7 +2065,7 @@ export default function Dashboard() {
                           {item.visited ? <CheckSquare className="h-6 w-6" /> : <Square className="h-6 w-6" />}
                           <span className="text-[10px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
                         </button>
-                        <button onClick={() => copy(formatText(item.uid, item.password, (item as { accessToken?: string | null }).accessToken), "Copied!")} className="flex flex-col items-center gap-1.5 text-sky-400 active:scale-95 transition-transform">
+                        <button onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")} className="flex flex-col items-center gap-1.5 text-sky-400 active:scale-95 transition-transform">
                           <Copy className="h-6 w-6" />
                           <span className="text-[10px] font-bold">Copy</span>
                         </button>
@@ -2246,10 +2255,10 @@ export default function Dashboard() {
 
                   {/* Login status badge */}
                   {(() => {
-                    const ls = (item as { loginStatus?: string | null }).loginStatus as LoginStatus | null | undefined;
+                    const ls = item.loginStatus as LoginStatus | null | undefined;
                     if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
                     const cfg = LOGIN_STATUS_CONFIG[ls];
-                    const token = (item as { accessToken?: string | null }).accessToken;
+                    const token = item.accessToken;
                     return (
                       <div className={`flex items-center gap-1.5 px-3 pb-1 text-[10px]`}>
                         <div className="w-3.5 h-3.5 shrink-0" />
@@ -2516,8 +2525,8 @@ export default function Dashboard() {
                   loginStatus: r.status,
                   accessToken: r.accessToken ?? null,
                   ...(isLive ? { visited: true } : {}),
-                  ...(isDead && !item.tag ? { tag: "Dead" } : {}),
-                } as Parameters<typeof updateMutation.mutate>[0]["data"],
+                  ...(isDead ? { tag: "Dead" } : {}),
+                },
               });
             });
             queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
