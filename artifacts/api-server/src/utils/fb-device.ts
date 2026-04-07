@@ -1,5 +1,48 @@
 import { randomUUID } from "crypto";
-import { ProxyAgent, fetch as undiciFetch, Agent as UndiciAgent } from "undici";
+import { ProxyAgent, fetch as undiciFetch, Agent as UndiciAgent, type Dispatcher } from "undici";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import https from "node:https";
+
+/**
+ * Returns an undici Dispatcher for HTTP/HTTPS proxies, or null for SOCKS
+ * (SOCKS proxies use the https module path below).
+ */
+function makeUndiciDispatcher(proxyUrl: string): Dispatcher | null {
+  const scheme = new URL(proxyUrl).protocol;
+  if (scheme === "socks5:" || scheme === "socks4:" || scheme === "socks4a:" || scheme === "socks:") {
+    return null; // handled separately via SocksProxyAgent
+  }
+  return new ProxyAgent(proxyUrl);
+}
+
+/** HTTP POST via SOCKS proxy using node:https + socks-proxy-agent */
+async function httpsPostViaSocks(url: string, headers: Record<string, string>, body: string, proxyUrl: string): Promise<string> {
+  const agent = new SocksProxyAgent(proxyUrl);
+  const parsed = new URL(url);
+  return new Promise<string>((resolve, reject) => {
+    const bodyBuf = Buffer.from(body, "utf8");
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        port: Number(parsed.port) || 443,
+        path: parsed.pathname + (parsed.search ?? ""),
+        method: "POST",
+        headers: { ...headers, "Content-Length": bodyBuf.length },
+        agent,
+      },
+      (res) => {
+        let data = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { data += chunk; });
+        res.on("end", () => resolve(data));
+      },
+    );
+    req.setTimeout(15_000, () => { req.destroy(new Error("timeout")); });
+    req.on("error", reject);
+    req.write(bodyBuf);
+    req.end();
+  });
+}
 
 interface AndroidDevice {
   model: string;
@@ -159,19 +202,37 @@ export async function checkFbLogin(uid: string, password: string, proxyUrl?: str
       "Accept-Language": device.locale.replace("_", "-"),
     };
 
-    const dispatcher = proxyUrl
-      ? new ProxyAgent(proxyUrl)
-      : new UndiciAgent();
+    const fbUrl = "https://graph.facebook.com/auth/login";
+    const bodyStr = params.toString();
 
-    const undiciRes = await undiciFetch("https://graph.facebook.com/auth/login", {
-      method: "POST",
-      headers: fetchHeaders,
-      body: params.toString(),
-      signal: AbortSignal.timeout(15_000),
-      dispatcher,
-    });
-
-    const text = await undiciRes.text();
+    let text: string;
+    if (proxyUrl) {
+      const dispatcher = makeUndiciDispatcher(proxyUrl);
+      if (dispatcher === null) {
+        // SOCKS proxy path
+        text = await httpsPostViaSocks(fbUrl, fetchHeaders, bodyStr, proxyUrl);
+      } else {
+        // HTTP/HTTPS proxy via undici
+        const undiciRes = await undiciFetch(fbUrl, {
+          method: "POST",
+          headers: fetchHeaders,
+          body: bodyStr,
+          signal: AbortSignal.timeout(15_000),
+          dispatcher,
+        });
+        text = await undiciRes.text();
+      }
+    } else {
+      // Direct (no proxy)
+      const undiciRes = await undiciFetch(fbUrl, {
+        method: "POST",
+        headers: fetchHeaders,
+        body: bodyStr,
+        signal: AbortSignal.timeout(15_000),
+        dispatcher: new UndiciAgent(),
+      });
+      text = await undiciRes.text();
+    }
     let json: Record<string, unknown>;
     try {
       json = JSON.parse(text) as Record<string, unknown>;

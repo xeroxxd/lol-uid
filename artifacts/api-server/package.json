@@ -17,9 +17,11 @@
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "https-proxy-agent": "^9.0.0",
     "openid-client": "^6.8.2",
     "pino": "^9",
     "pino-http": "^10",
+    "socks-proxy-agent": "^10.0.0",
     "undici": "^8.0.2"
   },
   "devDependencies": {
