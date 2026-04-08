@@ -688,7 +688,7 @@ export default function Dashboard() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [idsLoading, visibleCount, filteredItems.length]);
+  }, [idsLoading]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-fb-theme", theme);
