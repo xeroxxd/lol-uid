@@ -370,421 +370,6 @@ const LOGIN_STATUS_CONFIG: Record<LoginStatus, { label: string; color: string; d
   wrongpass:  { label: "Wrong Password 🔐",  color: "text-pink-400",   dotClass: "bg-pink-400",   bgClass: "bg-pink-900/20",   borderClass: "border-pink-500/30" },
 };
 
-type LCStatus = "idle" | "running" | "done" | "aborted";
-interface LCResult {
-  uid: string;
-  password: string;
-  status: LoginStatus;
-  statusLabel: string;
-  accessToken: string | null;
-  proxy?: string | null;
-  errorCode?: number | null;
-  errorSubcode?: number | null;
-}
-
-function LoginCheckerPanel({
-  onClose,
-  prefillPairs,
-  onComplete,
-  soundEnabled,
-  onPlayChime,
-  defaultProxies,
-}: {
-  onClose: () => void;
-  prefillPairs?: string;
-  onComplete?: (results: LCResult[]) => void;
-  soundEnabled?: boolean;
-  onPlayChime?: () => void;
-  defaultProxies?: string;
-}) {
-  const [inputText, setInputText] = useState(prefillPairs ?? "");
-  const [proxyText, setProxyText] = useState(defaultProxies ?? "");
-  const [showProxies, setShowProxies] = useState(() => !!(defaultProxies?.trim()));
-  const [workers, setWorkers] = useState(3);
-  const [delay, setDelay] = useState(1);
-  const [status, setStatus] = useState<LCStatus>("idle");
-  const [results, setResults] = useState<LCResult[]>([]);
-  const [progress, setProgress] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [activeTab, setActiveTab] = useState<LoginStatus | "all">("all");
-  const abortRef = useRef<AbortController | null>(null);
-
-  const pairCount = inputText.split("\n").filter((l) => { const t = l.trim(); return t && (t.includes("|") || t.includes(":")); }).length;
-  const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
-
-  const countsByStatus = useMemo(() => {
-    const c: Partial<Record<LoginStatus, number>> = {};
-    for (const r of results) {
-      c[r.status] = (c[r.status] ?? 0) + 1;
-    }
-    return c;
-  }, [results]);
-
-  const filteredResults = useMemo(() => {
-    if (activeTab === "all") return results;
-    return results.filter((r) => r.status === activeTab);
-  }, [results, activeTab]);
-
-  const startCheck = async () => {
-    const pairs = inputText
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => {
-        if (l.includes("|")) {
-          const parts = l.split("|");
-          return { uid: parts[0]?.trim() ?? "", password: parts.slice(1).join("|").trim() };
-        } else {
-          const colonIdx = l.indexOf(":");
-          if (colonIdx === -1) return { uid: l.trim(), password: "" };
-          return { uid: l.slice(0, colonIdx).trim(), password: l.slice(colonIdx + 1).trim() };
-        }
-      })
-      .filter((p) => p.uid && p.password);
-
-    if (!pairs.length) return;
-
-    setStatus("running");
-    setResults([]);
-    setProgress(0);
-    setTotal(pairs.length);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const accumulated: LCResult[] = [];
-
-    const proxies = proxyText
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.startsWith("http") || l.startsWith("socks"));
-
-    const triggerComplete = () => {
-      if (onComplete && accumulated.length > 0) {
-        onComplete([...accumulated]);
-      }
-      if (soundEnabled && onPlayChime) {
-        onPlayChime();
-      }
-    };
-
-    try {
-      const response = await fetch("/api/login-check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pairs, workers, delay: delay * 1000, proxies: proxies.length ? proxies : undefined }),
-        credentials: "include",
-        signal: controller.signal,
-      });
-      if (!response.ok || !response.body) { setStatus("aborted"); return; }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let streamDone = false;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const evt = JSON.parse(line.slice(6)) as Record<string, unknown>;
-            if (evt.event === "done") {
-              streamDone = true;
-              setStatus("done");
-              triggerComplete();
-            } else if (evt.uid) {
-              setProgress(evt.progress as number);
-              const r: LCResult = {
-                uid: evt.uid as string,
-                password: evt.password as string,
-                status: evt.status as LoginStatus,
-                statusLabel: evt.statusLabel as string,
-                accessToken: (evt.accessToken as string | null) ?? null,
-                proxy: (evt.proxy as string | null) ?? null,
-                errorCode: (evt.errorCode as number | null) ?? null,
-                errorSubcode: (evt.errorSubcode as number | null) ?? null,
-              };
-              accumulated.push(r);
-              setResults((prev) => [r, ...prev]);
-            }
-          } catch {}
-        }
-      }
-      if (!streamDone) {
-        setStatus("done");
-        triggerComplete();
-      }
-    } catch (e) {
-      if ((e as Error).name !== "AbortError") setStatus("aborted");
-    }
-  };
-
-  const abort = () => { abortRef.current?.abort(); setStatus("aborted"); };
-
-  const copyText = (t: string) => navigator.clipboard.writeText(t);
-
-  const liveResults = results.filter((r) => r.status === "live");
-
-  const exportLiveTokens = () => {
-    const lines = liveResults.map((r) => r.accessToken ? `${r.uid}|${r.password}|${r.accessToken}` : `${r.uid}|${r.password}`);
-    copyText(lines.join("\n"));
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#070b16] text-white">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-[#0c1122] border-b border-[#1a2540] sticky top-0 z-10">
-        <Shield className="h-4 w-4 text-purple-400 shrink-0" />
-        <span className="font-bold text-sm flex-1">Graph API Login Checker</span>
-        {status === "running" && (
-          <button onClick={abort} className="text-[11px] bg-red-600/30 border border-red-500/40 text-red-300 px-3 py-1 rounded-lg hover:bg-red-600/50 transition-colors">
-            Stop
-          </button>
-        )}
-        {(status === "done" || status === "aborted") && results.length > 0 && onComplete && (
-          <button
-            onClick={() => { onComplete(results); onClose(); }}
-            className="text-[11px] bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 px-3 py-1 rounded-lg hover:bg-cyan-600/50 transition-colors">
-            Apply to Dashboard
-          </button>
-        )}
-        <button onClick={() => { if (status === "running") abort(); onClose(); }} className="p-1.5 rounded text-slate-400 hover:text-white transition-colors">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-3">
-
-        {/* Settings */}
-        {status === "idle" && (
-          <>
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-3">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider">Paste uid|password lines</div>
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder={"100044388870940|mypassword123\n100012345678:another_pass\n(uid|pass or uid:pass)"}
-                rows={8}
-                className="w-full bg-[#070b16] border border-[#1a2540] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-lg px-3 py-2.5 outline-none focus:border-purple-500/50 resize-none"
-              />
-              <div className="text-[10px] text-slate-600">{pairCount} valid pairs · max 2,000</div>
-            </div>
-
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider">Workers</span>
-                <span className="text-xs font-bold text-purple-300">{workers}</span>
-              </div>
-              <input type="range" min={1} max={10} value={workers} onChange={(e) => setWorkers(Number(e.target.value))}
-                className="w-full accent-purple-500" />
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider">Delay Between Requests</span>
-                <span className="text-xs font-bold text-purple-300">{delay}s</span>
-              </div>
-              <input type="range" min={0} max={5} step={0.5} value={delay} onChange={(e) => setDelay(Number(e.target.value))}
-                className="w-full accent-purple-500" />
-            </div>
-
-            {/* Proxy section */}
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-2">
-              <button
-                onClick={() => setShowProxies((v) => !v)}
-                className="flex items-center justify-between w-full text-[10px] text-slate-500 uppercase tracking-wider">
-                <span className="flex items-center gap-1.5"><Wifi className="h-3 w-3" /> Proxies (optional)</span>
-                <span className={proxyText.trim() ? "text-cyan-400" : "text-slate-600"}>
-                  {proxyText.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length || "off"}
-                </span>
-              </button>
-              {showProxies && (
-                <>
-                  <textarea
-                    value={proxyText}
-                    onChange={(e) => setProxyText(e.target.value)}
-                    placeholder={"http://user:pass@host:port\nsocks5://host:port\n(one proxy per line)"}
-                    rows={4}
-                    className="w-full bg-[#070b16] border border-[#1a2540] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-lg px-3 py-2.5 outline-none focus:border-purple-500/50 resize-none"
-                  />
-                  <div className="text-[9px] text-slate-600">Proxies rotate round-robin across workers.</div>
-                </>
-              )}
-            </div>
-
-            <div className="bg-[#0c1122] rounded-xl border border-purple-500/20 p-3">
-              <div className="text-[10px] text-purple-400 font-semibold mb-1.5">Status Guide</div>
-              <div className="grid grid-cols-2 gap-1">
-                {(Object.entries(LOGIN_STATUS_CONFIG) as [LoginStatus, typeof LOGIN_STATUS_CONFIG[LoginStatus]][]).map(([, cfg]) => (
-                  <div key={cfg.label} className="flex items-center gap-1.5 text-[10px]">
-                    <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0`} />
-                    <span className={cfg.color}>{cfg.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={startCheck}
-              disabled={pairCount === 0}
-              className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2">
-              <Shield className="h-4 w-4" /> Start Login Check ({pairCount} pairs)
-            </button>
-          </>
-        )}
-
-        {/* Running */}
-        {status === "running" && (
-          <>
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3">
-              <div className="flex items-center justify-between text-[11px] mb-2">
-                <span className="text-slate-400">{progress}/{total} checked</span>
-                <span className="text-purple-400 font-bold">{pct}%</span>
-              </div>
-              <div className="h-2.5 bg-[#1a2540] rounded-full overflow-hidden mb-3">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#a855f7,#6366f1)" }} />
-              </div>
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                {countsByStatus.live ? <span className="text-green-400 font-semibold">✅ {countsByStatus.live} Live</span> : null}
-                {countsByStatus.checkpoint ? <span className="text-yellow-400 font-semibold">🔒 {countsByStatus.checkpoint} Checkpoint</span> : null}
-                {countsByStatus["2fa"] ? <span className="text-blue-400 font-semibold">🔑 {countsByStatus["2fa"]} 2FA</span> : null}
-                {countsByStatus.wrongpass ? <span className="text-pink-400 font-semibold">🔐 {countsByStatus.wrongpass} WrongPass</span> : null}
-                {countsByStatus.dead ? <span className="text-red-400 font-semibold">❌ {countsByStatus.dead} Dead</span> : null}
-                {countsByStatus.locked ? <span className="text-orange-400 font-semibold">🚫 {countsByStatus.locked} Locked</span> : null}
-                {countsByStatus.disabled ? <span className="text-slate-400 font-semibold">🛑 {countsByStatus.disabled} Disabled</span> : null}
-                <span className="text-slate-600 ml-auto">{total - progress} left</span>
-              </div>
-            </div>
-
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Live Feed</div>
-            <div className="flex flex-col gap-1">
-              {results.slice(0, 30).map((r, i) => {
-                const cfg = LOGIN_STATUS_CONFIG[r.status] ?? LOGIN_STATUS_CONFIG.dead;
-                return (
-                  <div key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 border ${cfg.bgClass} ${cfg.borderClass}`}>
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
-                    <span className="font-mono text-xs text-slate-300 truncate flex-1">{r.uid}</span>
-                    <span className={`text-[10px] font-semibold ${cfg.color} shrink-0`}>{r.statusLabel}</span>
-                    {r.accessToken && (
-                      <button onClick={() => copyText(r.accessToken!)} className="text-[9px] bg-green-900/40 text-green-400 px-1.5 py-0.5 rounded hover:bg-green-900/60 shrink-0">
-                        Token
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* Done / Aborted */}
-        {(status === "done" || status === "aborted") && (
-          <>
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-4">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider text-center mb-3">
-                {status === "done" ? "✅ Check Complete" : "⚠️ Aborted"}
-              </div>
-              <div className="flex flex-wrap justify-center gap-4">
-                {(Object.entries(countsByStatus) as [LoginStatus, number][]).map(([s, cnt]) => {
-                  const cfg = LOGIN_STATUS_CONFIG[s];
-                  return (
-                    <div key={s} className="text-center">
-                      <div className={`text-2xl font-bold ${cfg.color}`}>{cnt}</div>
-                      <div className="text-[10px] text-slate-500">{cfg.label}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Export live tokens */}
-            {liveResults.length > 0 && (
-              <div className="flex gap-1.5">
-                <button onClick={exportLiveTokens}
-                  className="flex-1 py-2.5 text-xs font-bold bg-green-600/30 border border-green-500/40 text-green-300 hover:bg-green-600/50 rounded-xl flex items-center justify-center gap-1.5 transition-colors">
-                  <Copy className="h-3.5 w-3.5" /> Copy Live (uid|pass|token) ({liveResults.length})
-                </button>
-                <button onClick={() => copyText(liveResults.map((r) => `${r.uid}|${r.password}`).join("\n"))}
-                  className="flex-1 py-2.5 text-xs font-bold bg-[#1a2540] border border-[#1a2540] text-slate-300 hover:text-white rounded-xl flex items-center justify-center gap-1.5 transition-colors">
-                  <Copy className="h-3.5 w-3.5" /> Copy Live Pairs
-                </button>
-              </div>
-            )}
-
-            {/* Filter tabs */}
-            <div className="flex gap-1 flex-wrap">
-              <button onClick={() => setActiveTab("all")}
-                className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${activeTab === "all" ? "bg-purple-500 border-purple-500 text-white font-bold" : "border-[#1a2540] text-slate-500 hover:text-white"}`}>
-                All ({results.length})
-              </button>
-              {(Object.entries(countsByStatus) as [LoginStatus, number][]).map(([s, cnt]) => {
-                const cfg = LOGIN_STATUS_CONFIG[s];
-                return (
-                  <button key={s} onClick={() => setActiveTab(s)}
-                    className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${activeTab === s ? `${cfg.bgClass} ${cfg.borderClass} ${cfg.color} font-bold` : "border-[#1a2540] text-slate-500 hover:text-white"}`}>
-                    {cfg.label} ({cnt})
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Results list */}
-            <div className="flex flex-col gap-1 pb-24">
-              {filteredResults.map((r, i) => {
-                const cfg = LOGIN_STATUS_CONFIG[r.status] ?? LOGIN_STATUS_CONFIG.dead;
-                const proxyLabel = r.proxy ? (() => { try { return new URL(r.proxy).hostname; } catch { return r.proxy; } })() : null;
-                return (
-                  <div key={i} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${cfg.bgClass} ${cfg.borderClass}`}>
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotClass}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-xs text-slate-200 truncate">{r.uid}</span>
-                        <span className={`text-[10px] font-semibold ${cfg.color}`}>{r.statusLabel}</span>
-                        {proxyLabel && (
-                          <span className="text-[9px] bg-slate-700/60 text-slate-500 px-1 py-0.5 rounded font-mono">
-                            🌐 {proxyLabel}
-                          </span>
-                        )}
-                        {r.status !== "live" && (r.errorCode || r.errorSubcode) && (
-                          <span className="text-[9px] bg-slate-800/70 text-slate-500 px-1 py-0.5 rounded font-mono" title="Facebook error code / subcode">
-                            err:{r.errorCode ?? "?"}{r.errorSubcode ? `/${r.errorSubcode}` : ""}
-                          </span>
-                        )}
-                      </div>
-                      {r.accessToken && (
-                        <div className="text-[10px] text-green-400/70 font-mono truncate mt-0.5">{r.accessToken.slice(0, 40)}…</div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1 shrink-0">
-                      <button onClick={() => copyText(`${r.uid}|${r.password}`)}
-                        className="text-[9px] bg-slate-700/50 hover:bg-slate-600/60 text-slate-300 px-1.5 py-0.5 rounded">
-                        uid|pass
-                      </button>
-                      {r.accessToken && (
-                        <button onClick={() => copyText(r.accessToken!)}
-                          className="text-[9px] bg-green-900/40 hover:bg-green-900/60 text-green-400 px-1.5 py-0.5 rounded">
-                          Token
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button onClick={() => { setStatus("idle"); setResults([]); setProgress(0); setActiveTab("all"); }}
-              className="w-full py-2.5 border border-[#1a2540] text-slate-400 hover:text-white text-xs rounded-xl transition-colors mb-24 flex items-center justify-center gap-1.5">
-              <RotateCcw className="h-3 w-3" /> Check Again
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function highlightText(text: string, query: string): ReactNode {
   if (!query.trim()) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -901,8 +486,6 @@ export default function Dashboard() {
     } catch { return new Map(); }
   });
   const [showValidator, setShowValidator] = useState(false);
-  const [showLoginChecker, setShowLoginChecker] = useState(false);
-  const [loginCheckerPrefill, setLoginCheckerPrefill] = useState<string | undefined>(undefined);
   const [customTags, setCustomTags] = useState<{ label: string; color: string }[]>(() => {
     try { return JSON.parse(localStorage.getItem("fb_custom_tags") ?? "[]"); } catch { return []; }
   });
@@ -939,6 +522,8 @@ export default function Dashboard() {
   const longPressFired = useRef(false);
   const listBottomRef = useRef<HTMLDivElement>(null);
   const [profileData, setProfileData] = useState<Map<string, ProfileData>>(new Map());
+  const profileDataRef = useRef<Map<string, ProfileData>>(new Map());
+  profileDataRef.current = profileData;
   const fetchedUids = useRef<Set<string>>(new Set());
   const [failedUids, setFailedUids] = useState<Set<string>>(new Set());
   const analyticsRef = useRef<HTMLDivElement>(null);
@@ -1099,11 +684,11 @@ export default function Dashboard() {
       (entries) => {
         if (entries[0].isIntersecting) setVisibleCount((v) => v + 50);
       },
-      { threshold: 0.1, rootMargin: "0px 0px 120px 0px" },
+      { threshold: 0, rootMargin: "0px 0px 300px 0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [idsLoading]);
+  }, [idsLoading, visibleCount, filteredItems.length]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-fb-theme", theme);
@@ -1247,14 +832,15 @@ export default function Dashboard() {
   }
 
   const filteredItems = useMemo(() => {
+    const pd = profileDataRef.current;
     let items = [...allItems];
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       items = items.filter((i) =>
         i.uid.toLowerCase().includes(q) ||
         (i.note ?? "").toLowerCase().includes(q) ||
-        (profileData.get(i.uid)?.name ?? "").toLowerCase().includes(q) ||
-        (profileData.get(i.uid)?.instagramUsername ?? "").toLowerCase().includes(q),
+        (pd.get(i.uid)?.name ?? "").toLowerCase().includes(q) ||
+        (pd.get(i.uid)?.instagramUsername ?? "").toLowerCase().includes(q),
       );
     }
     switch (filterMode) {
@@ -1264,8 +850,8 @@ export default function Dashboard() {
       case "noted":       items = items.filter((i) => !!i.note); break;
       case "hasnote":     items = items.filter((i) => !!i.note); break;
       case "tagged":      items = items.filter((i) => !!i.tag); break;
-      case "hasig":       items = items.filter((i) => !!profileData.get(i.uid)?.instagramUsername); break;
-      case "hasname":     items = items.filter((i) => !!profileData.get(i.uid)?.name); break;
+      case "hasig":       items = items.filter((i) => !!pd.get(i.uid)?.instagramUsername); break;
+      case "hasname":     items = items.filter((i) => !!pd.get(i.uid)?.name); break;
       case "dead":        items = items.filter((i) => i.tag === "Dead"); break;
       case "live":        items = items.filter((i) => i.loginStatus === "live"); break;
       case "checkpoint":  items = items.filter((i) => i.loginStatus === "checkpoint"); break;
@@ -1287,20 +873,20 @@ export default function Dashboard() {
         return tb - ta;
       }); break;
       case "name": items.sort((a, b) => {
-        const na = profileData.get(a.uid)?.name ?? null;
-        const nb = profileData.get(b.uid)?.name ?? null;
+        const na = pd.get(a.uid)?.name ?? null;
+        const nb = pd.get(b.uid)?.name ?? null;
         if (na && nb) return na.localeCompare(nb);
         if (na) return -1;
         if (nb) return 1;
         return 0;
       }); break;
       case "followers": items.sort((a, b) =>
-        parseFollowerNum(profileData.get(b.uid)?.followerCount ?? null) -
-        parseFollowerNum(profileData.get(a.uid)?.followerCount ?? null)
+        parseFollowerNum(pd.get(b.uid)?.followerCount ?? null) -
+        parseFollowerNum(pd.get(a.uid)?.followerCount ?? null)
       ); break;
     }
     return items;
-  }, [allItems, searchQuery, sortMode, filterMode, profileData, tagFilter]);
+  }, [allItems, searchQuery, sortMode, filterMode, tagFilter]);
 
   useEffect(() => {
     if (idsLoading) return;
@@ -1503,17 +1089,6 @@ export default function Dashboard() {
           <button onClick={() => { setShowSettings((v) => !v); setShowSort(false); setShowSearch(false); setShowCopyFmt(false); }}
             className={`p-1.5 rounded hover:bg-white/10 transition-colors ${showSettings ? "text-cyan-400" : "text-slate-400 hover:text-white"}`} title="Settings">
             <Settings className="h-4 w-4" />
-          </button>
-          <button onClick={() => {
-              const source = selected.size > 0
-                ? filteredItems.filter((i) => selected.has(i.id) && i.password)
-                : allItems.filter((i) => i.password);
-              const pairs = source.map((i) => `${i.uid}|${i.password}`).join("\n");
-              setLoginCheckerPrefill(pairs);
-              setShowLoginChecker(true);
-            }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-purple-400 transition-colors" title={selected.size > 0 ? `Login Checker (${selected.size} selected)` : "Login Checker (all)"}>
-            <Shield className="h-4 w-4" />
           </button>
           <button onClick={logout} className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Logout">
             <LogOut className="h-4 w-4" />
@@ -2849,35 +2424,6 @@ export default function Dashboard() {
           onImportDead={handleImportDead}
           soundEnabled={soundEnabled}
           onPlayChime={playChime}
-        />
-      )}
-
-      {/* Login Checker Overlay */}
-      {showLoginChecker && (
-        <LoginCheckerPanel
-          onClose={() => setShowLoginChecker(false)}
-          prefillPairs={loginCheckerPrefill}
-          soundEnabled={soundEnabled}
-          onPlayChime={playChime}
-          defaultProxies={globalProxies}
-          onComplete={(results) => {
-            results.forEach((r) => {
-              const item = allItems.find((i) => i.uid === r.uid);
-              if (!item) return;
-              const isLive = r.status === "live";
-              const isDead = r.status === "dead" || r.status === "wrongpass" || r.status === "disabled";
-              updateMutation.mutate({
-                id: item.id,
-                data: {
-                  loginStatus: r.status,
-                  accessToken: r.accessToken ?? null,
-                  ...(isLive ? { visited: true } : {}),
-                  ...(isDead ? { tag: "Dead" } : {}),
-                },
-              });
-            });
-            queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
-          }}
         />
       )}
 
