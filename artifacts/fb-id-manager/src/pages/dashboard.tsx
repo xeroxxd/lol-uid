@@ -1,7 +1,6 @@
 import { useAuth } from "@workspace/replit-auth-web";
 import { useLocation } from "wouter";
-import { useEffect, useState, useMemo, useRef, useCallback, type ReactNode } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   useListFacebookIds,
   useBulkImportFacebookIds,
@@ -16,14 +15,13 @@ import {
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Zap, Trash2, LogOut, Plus, Search, Copy, Download,
-  ArrowUpToLine, SortAsc, Loader2, X, Key, Shield,
-  FileText, Tag, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
-  Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon, Save,
-  BookmarkCheck, CheckCircle, RefreshCw, RotateCcw, Eye, EyeOff, TrendingUp,
-  Crown, Flame, Wifi, WifiOff, Sparkles, Filter, AlarmClock, Bell, BellOff, Smartphone, Clipboard,
+  ArrowUpToLine, SortAsc, Loader2, X, Key,
+  FileText, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
+  Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon,
+  BookmarkCheck, CheckCircle, RefreshCw, RotateCcw, Eye, EyeOff,
+  Wifi, WifiOff, Bell, BellOff, Smartphone,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
@@ -44,6 +42,16 @@ interface ProfileData {
   instagramUsername: string | null;
 }
 
+const LOGIN_STATUS_CONFIG: Record<LoginStatus, { label: string; dotClass: string; badgeClass: string }> = {
+  live:       { label: "Live",       dotClass: "bg-green-500",  badgeClass: "bg-green-900/40 text-green-300 border-green-500/30" },
+  dead:       { label: "Dead",       dotClass: "bg-red-500",    badgeClass: "bg-red-900/40 text-red-300 border-red-500/30" },
+  checkpoint: { label: "Checkpoint", dotClass: "bg-amber-400",  badgeClass: "bg-amber-900/40 text-amber-300 border-amber-500/30" },
+  "2fa":      { label: "2FA",        dotClass: "bg-blue-400",   badgeClass: "bg-blue-900/40 text-blue-300 border-blue-500/30" },
+  locked:     { label: "Locked",     dotClass: "bg-orange-400", badgeClass: "bg-orange-900/40 text-orange-300 border-orange-500/30" },
+  disabled:   { label: "Disabled",   dotClass: "bg-slate-500",  badgeClass: "bg-slate-800/60 text-slate-400 border-slate-600/30" },
+  wrongpass:  { label: "Wrong Pass", dotClass: "bg-pink-400",   badgeClass: "bg-pink-900/40 text-pink-300 border-pink-500/30" },
+};
+
 function ProfileAvatar({ profile, uid, size = 28 }: { profile: ProfileData; uid: string; size?: number }) {
   const [imgErr, setImgErr] = useState(false);
   const initials = (profile.name ?? uid).slice(0, 2).toUpperCase();
@@ -52,22 +60,15 @@ function ProfileAvatar({ profile, uid, size = 28 }: { profile: ProfileData; uid:
   const px = `${size}px`;
   if (profile.photoUrl && !imgErr) {
     return (
-      <img
-        src={profile.photoUrl}
-        alt={initials}
-        width={size}
-        height={size}
+      <img src={profile.photoUrl} alt={initials} width={size} height={size}
         onError={() => setImgErr(true)}
         className="rounded-full object-cover shrink-0 border border-white/10"
-        style={{ width: px, height: px, minWidth: px }}
-      />
+        style={{ width: px, height: px, minWidth: px }} />
     );
   }
   return (
-    <div
-      className="rounded-full shrink-0 flex items-center justify-center text-white font-bold border border-white/10"
-      style={{ width: px, height: px, minWidth: px, background: gradient, fontSize: size * 0.38 }}
-    >
+    <div className="rounded-full shrink-0 flex items-center justify-center text-white font-bold border border-white/10"
+      style={{ width: px, height: px, minWidth: px, background: gradient, fontSize: size * 0.38 }}>
       {initials}
     </div>
   );
@@ -92,7 +93,12 @@ function ValidatorAvatar({ uid, name, photoUrl }: { uid: string; name: string | 
   );
 }
 
-function ValidatorPanel({ onClose, onImportLive, onImportDead, soundEnabled, onPlayChime }: { onClose: () => void; onImportLive: (uids: string[]) => void; onImportDead: (uids: string[]) => void; soundEnabled?: boolean; onPlayChime?: () => void; }) {
+function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
+  onClose: () => void;
+  onImportLive: (uids: string[]) => void;
+  soundEnabled?: boolean;
+  onPlayChime?: () => void;
+}) {
   const [inputText, setInputText] = useState("");
   const [status, setStatus] = useState<ValidatorStatus>("idle");
   const [liveResults, setLiveResults] = useState<VResult[]>([]);
@@ -147,8 +153,7 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead, soundEnabled, onP
             } else if (evt.uid) {
               setProgress(evt.progress as number);
               const entry: FeedEntry = {
-                uid: evt.uid as string,
-                status: evt.status as "live" | "dead",
+                uid: evt.uid as string, status: evt.status as "live" | "dead",
                 name: (evt.name as string | null) ?? null,
                 username: (evt.username as string | null) ?? null,
                 followerCount: (evt.followerCount as string | null) ?? null,
@@ -157,8 +162,7 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead, soundEnabled, onP
               setFeed((prev) => [entry, ...prev].slice(0, 50));
               if (evt.status === "live") {
                 setLiveResults((prev) => [...prev, {
-                  uid: evt.uid as string,
-                  name: (evt.name as string | null) ?? null,
+                  uid: evt.uid as string, name: (evt.name as string | null) ?? null,
                   username: (evt.username as string | null) ?? null,
                   followerCount: (evt.followerCount as string | null) ?? null,
                   photoUrl: (evt.photoUrl as string | null) ?? null,
@@ -172,29 +176,23 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead, soundEnabled, onP
         }
       }
       setStatus((s) => {
-        if (s === "running") {
-          if (soundEnabled && onPlayChime) onPlayChime();
-          return "done";
-        }
+        if (s === "running") { if (soundEnabled && onPlayChime) onPlayChime(); return "done"; }
         return s;
       });
-    } catch {
-      setStatus("aborted");
-    }
+    } catch { setStatus("aborted"); }
   };
 
   const abort = () => { abortRef.current?.abort(); setStatus("aborted"); };
   const copyText = (t: string) => navigator.clipboard.writeText(t);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#070b16] text-white">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-[#0c1122] border-b border-[#1a2540] sticky top-0">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#060c17] text-white">
+      <div className="flex items-center gap-2 px-4 py-3 bg-[#0d1627] border-b border-[#1e2d47] sticky top-0">
         <Zap className="h-4 w-4 text-green-400 shrink-0" />
         <span className="font-bold text-sm flex-1">Bulk Live Validator</span>
         {status === "running" && (
           <button onClick={abort} className="text-[11px] bg-red-600/30 border border-red-500/40 text-red-300 px-3 py-1 rounded-lg hover:bg-red-600/50 transition-colors">
-            Abort
+            Stop
           </button>
         )}
         <button onClick={() => { if (status === "running") abort(); onClose(); }} className="p-1.5 rounded text-slate-400 hover:text-white transition-colors">
@@ -202,155 +200,138 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead, soundEnabled, onP
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-3">
-
-        {/* Idle: Input */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {status === "idle" && (
           <>
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs (one per line)</div>
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+            <div className="bg-[#0d1627] rounded-2xl border border-[#1e2d47] p-4">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs (one per line)</div>
+              <textarea value={inputText} onChange={(e) => setInputText(e.target.value)}
                 placeholder={"100044388870940\njohnsmith\n100012345678..."}
                 rows={10}
-                className="w-full bg-[#070b16] border border-[#1a2540] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-lg px-3 py-2.5 outline-none focus:border-cyan-500/50 resize-none"
-              />
-              <div className="text-[10px] text-slate-600 mt-1.5">{uidCount} UIDs entered · max 5,000</div>
+                className="w-full bg-[#060c17] border border-[#1e2d47] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500/50 resize-none" />
+              <div className="text-[10px] text-slate-600 mt-2">{uidCount} UIDs · max 5,000</div>
             </div>
-            <button
-              onClick={startValidation}
-              disabled={uidCount === 0}
-              className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
-            >
-              <Zap className="h-4 w-4" /> Start Validation ({uidCount} UIDs)
+            <button onClick={startValidation} disabled={uidCount === 0}
+              className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2">
+              <Zap className="h-4 w-4" /> Start Validation ({uidCount})
             </button>
-            <div className="text-[10px] text-slate-600 text-center px-4 pb-4">
-              Each ID is checked live against Facebook. Live IDs (with profile data) and Dead IDs (no data) will be split into separate groups.
-            </div>
+            <p className="text-[10px] text-slate-600 text-center px-4 pb-4">
+              Each ID is checked live against Facebook. Live and Dead IDs are split into separate groups.
+            </p>
           </>
         )}
 
-        {/* Running: Progress + Feed */}
         {status === "running" && (
           <>
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3">
+            <div className="bg-[#0d1627] rounded-2xl border border-[#1e2d47] p-4">
               <div className="flex items-center justify-between text-[11px] mb-2">
                 <span className="text-slate-400 flex items-center gap-1.5">
-                  {progress}/{total} validated
-                  {isRateLimited && <span className="text-yellow-400 animate-pulse">⏳ Rate limited, pausing…</span>}
+                  {progress}/{total}
+                  {isRateLimited && <span className="text-yellow-400 animate-pulse ml-1">⏳ Rate limited…</span>}
                 </span>
                 <span className="text-cyan-400 font-bold">{pct}%</span>
               </div>
-              <div className="h-2.5 bg-[#1a2540] rounded-full overflow-hidden">
+              <div className="h-2 bg-[#1e2d47] rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#22c55e,#06b6d4)" }} />
               </div>
-              <div className="flex gap-4 mt-2.5 text-[11px]">
+              <div className="flex gap-4 mt-3 text-[11px]">
                 <span className="text-green-400 font-semibold">✅ {liveResults.length} Live</span>
                 <span className="text-red-400 font-semibold">💀 {deadResults.length} Dead</span>
-                <span className="text-slate-600 ml-auto">{total - progress} remaining</span>
+                <span className="text-slate-600 ml-auto">{total - progress} left</span>
               </div>
             </div>
-            <div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider px-0.5 mb-1.5">Live Results Feed</div>
-              <div className="flex flex-col gap-1 max-h-[55vh] overflow-y-auto">
-                {feed.map((entry, i) => (
-                  entry.status === "live" ? (
-                    <div key={i} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 bg-green-900/20 border border-green-500/20">
-                      <ValidatorAvatar uid={entry.uid} name={entry.name ?? null} photoUrl={entry.photoUrl ?? null} />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-green-200 text-xs font-semibold truncate">{entry.name ?? entry.uid}</div>
-                        <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
-                          {entry.username && <span className="text-cyan-400/80">@{entry.username}</span>}
-                          {entry.followerCount && <span className="text-emerald-400">{entry.followerCount}</span>}
-                          {!entry.name && <span className="text-slate-600 font-mono">{entry.uid}</span>}
-                        </div>
+            <div className="flex flex-col gap-1.5 max-h-[55vh] overflow-y-auto">
+              {feed.map((entry, i) => (
+                entry.status === "live" ? (
+                  <div key={i} className="flex items-center gap-2.5 rounded-xl px-3 py-2 bg-green-900/20 border border-green-500/20">
+                    <ValidatorAvatar uid={entry.uid} name={entry.name ?? null} photoUrl={entry.photoUrl ?? null} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-green-200 text-xs font-semibold truncate">{entry.name ?? entry.uid}</div>
+                      <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                        {entry.username && <span className="text-cyan-400/80">@{entry.username}</span>}
+                        {entry.followerCount && <span className="text-emerald-400">{entry.followerCount}</span>}
                       </div>
-                      <span className="text-green-400 text-xs shrink-0">✅</span>
                     </div>
-                  ) : (
-                    <div key={i} className="flex items-center gap-2 rounded-lg px-2.5 py-1 bg-red-900/10 border border-red-500/10 opacity-60">
-                      <span className="text-red-400 text-xs">💀</span>
-                      <span className="font-mono text-xs text-slate-500 truncate flex-1">{entry.uid}</span>
-                    </div>
-                  )
-                ))}
-              </div>
+                    <span className="text-green-400 text-xs">✅</span>
+                  </div>
+                ) : (
+                  <div key={i} className="flex items-center gap-2 rounded-xl px-3 py-2 bg-red-900/15 border border-red-500/15">
+                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-500 shrink-0">?</div>
+                    <span className="text-red-300/70 text-xs font-mono flex-1 truncate">{entry.uid}</span>
+                    <span className="text-red-400 text-xs">💀</span>
+                  </div>
+                )
+              ))}
             </div>
           </>
         )}
 
-        {/* Done / Aborted: Results */}
         {(status === "done" || status === "aborted") && (
           <>
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-4 text-center">
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-3">
-                {status === "done" ? "✅ Validation Complete" : "⚠️ Validation Aborted"}
+            <div className="bg-[#0d1627] rounded-2xl border border-[#1e2d47] p-4">
+              <div className="text-sm font-bold text-white mb-1">
+                {status === "done" ? "Validation Complete" : "Stopped"}
               </div>
-              <div className="flex justify-center gap-8">
-                <div><div className="text-3xl font-bold text-green-400">{liveResults.length}</div><div className="text-[10px] text-slate-500 mt-0.5">Live IDs</div></div>
-                <div><div className="text-3xl font-bold text-red-400">{deadResults.length}</div><div className="text-[10px] text-slate-500 mt-0.5">Dead IDs</div></div>
+              <div className="flex gap-6 text-[12px]">
+                <span className="text-green-400 font-bold">✅ {liveResults.length} Live</span>
+                <span className="text-red-400 font-bold">💀 {deadResults.length} Dead</span>
               </div>
             </div>
-            <div className="flex gap-1.5">
-              <button onClick={() => setActiveTab("live")} className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${activeTab === "live" ? "bg-green-600/30 border-green-500/40 text-green-300" : "border-[#1a2540] text-slate-500 hover:text-white"}`}>✅ Live ({liveResults.length})</button>
-              <button onClick={() => setActiveTab("dead")} className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${activeTab === "dead" ? "bg-red-600/30 border-red-500/40 text-red-300" : "border-[#1a2540] text-slate-500 hover:text-white"}`}>💀 Dead ({deadResults.length})</button>
+            <div className="flex gap-2">
+              {(["live", "dead"] as const).map((tab) => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2 rounded-xl text-[11px] font-bold transition-colors border
+                    ${activeTab === tab
+                      ? tab === "live" ? "bg-green-600/30 border-green-500/50 text-green-200" : "bg-red-600/30 border-red-500/50 text-red-200"
+                      : "border-[#1e2d47] text-slate-500 hover:text-white"}`}>
+                  {tab === "live" ? `✅ Live (${liveResults.length})` : `💀 Dead (${deadResults.length})`}
+                </button>
+              ))}
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {activeTab === "live" ? (
-                <>
-                  <button onClick={() => onImportLive(liveResults.map((r) => r.uid))} disabled={liveResults.length === 0}
-                    className="py-2.5 text-xs font-bold bg-green-600/30 border border-green-500/40 text-green-300 hover:bg-green-600/50 rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
-                    <Download className="h-3.5 w-3.5" /> Import Live
+
+            {activeTab === "live" && liveResults.length > 0 && (
+              <>
+                <div className="flex gap-1.5">
+                  <button onClick={() => copyText(liveResults.map((r) => r.uid).join("\n"))}
+                    className="flex-1 flex items-center justify-center gap-1 text-[11px] bg-[#0d1627] border border-[#1e2d47] text-slate-300 hover:text-white px-3 py-2 rounded-xl transition-colors">
+                    <Copy className="h-3 w-3" /> Copy UIDs
                   </button>
-                  <button onClick={() => copyText(liveResults.map((r) => r.uid).join("\n"))} disabled={liveResults.length === 0}
-                    className="py-2.5 text-xs font-bold bg-[#1a2540] border border-[#1a2540] text-slate-300 hover:text-white rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
-                    <Copy className="h-3.5 w-3.5" /> Copy Live UIDs
+                  <button onClick={() => onImportLive(liveResults.map((r) => r.uid))}
+                    className="flex-1 flex items-center justify-center gap-1 text-[11px] bg-green-600/30 border border-green-500/40 text-green-200 hover:text-green-100 px-3 py-2 rounded-xl transition-colors">
+                    <Plus className="h-3 w-3" /> Import to List
                   </button>
-                </>
-              ) : (
-                <>
-                  <button onClick={() => onImportDead(deadResults)} disabled={deadResults.length === 0}
-                    className="py-2.5 text-xs font-bold bg-red-600/30 border border-red-500/40 text-red-300 hover:bg-red-600/50 rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
-                    <Download className="h-3.5 w-3.5" /> Import Dead
-                  </button>
-                  <button onClick={() => copyText(deadResults.join("\n"))} disabled={deadResults.length === 0}
-                    className="py-2.5 text-xs font-bold bg-[#1a2540] border border-[#1a2540] text-slate-300 hover:text-white rounded-xl disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
-                    <Copy className="h-3.5 w-3.5" /> Copy Dead UIDs
-                  </button>
-                </>
-              )}
-            </div>
-            <div className="flex flex-col gap-1.5 pb-4">
-              {activeTab === "live"
-                ? liveResults.map((r) => (
-                    <div key={r.uid} className="flex items-center gap-2.5 bg-green-900/15 border border-green-500/20 rounded-xl px-3 py-2">
+                </div>
+                <div className="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto">
+                  {liveResults.map((r) => (
+                    <div key={r.uid} className="flex items-center gap-2.5 rounded-xl px-3 py-2 bg-[#0d1627] border border-[#1e2d47]">
                       <ValidatorAvatar uid={r.uid} name={r.name} photoUrl={r.photoUrl} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {r.name && <span className="text-green-200 text-xs font-semibold truncate">{r.name}</span>}
-                          {r.username && <span className="text-cyan-400/70 text-[10px]">@{r.username}</span>}
-                          {r.followerCount && <span className="text-emerald-400 text-[10px]">{r.followerCount}</span>}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-slate-600 text-[10px] font-mono truncate">{r.uid}</span>
-                          {r.instagramUsername && <span className="text-pink-400 text-[10px]">📷 @{r.instagramUsername}</span>}
-                        </div>
+                        {r.name && <div className="text-white text-xs font-semibold truncate">{r.name}</div>}
+                        <div className="text-slate-500 text-[10px] font-mono truncate">{r.uid}</div>
                       </div>
                     </div>
-                  ))
-                : (
-                  <div className="bg-[#0c1122] border border-[#1a2540] rounded-xl p-3 max-h-[60vh] overflow-y-auto">
-                    {deadResults.map((uid, i) => (
-                      <div key={i} className="text-[11px] text-slate-600 font-mono py-0.5">{uid}</div>
-                    ))}
-                  </div>
-                )
-              }
-            </div>
-            <button onClick={() => { setStatus("idle"); setLiveResults([]); setDeadResults([]); setFeed([]); setProgress(0); }}
-              className="w-full py-2.5 border border-[#1a2540] text-slate-400 hover:text-white text-xs rounded-xl transition-colors mb-24 flex items-center justify-center gap-1.5">
-              <RotateCcw className="h-3 w-3" /> Validate Again
+                  ))}
+                </div>
+              </>
+            )}
+
+            {activeTab === "dead" && deadResults.length > 0 && (
+              <>
+                <button onClick={() => copyText(deadResults.join("\n"))}
+                  className="flex items-center justify-center gap-1.5 text-[11px] bg-[#0d1627] border border-[#1e2d47] text-slate-300 hover:text-white px-3 py-2 rounded-xl transition-colors">
+                  <Copy className="h-3 w-3" /> Copy Dead UIDs ({deadResults.length})
+                </button>
+                <div className="flex flex-col gap-1 max-h-[50vh] overflow-y-auto">
+                  {deadResults.map((uid) => (
+                    <div key={uid} className="text-red-300/60 text-xs font-mono px-3 py-1.5 bg-red-900/10 border border-red-500/10 rounded-lg">{uid}</div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <button onClick={() => { setStatus("idle"); setInputText(""); setLiveResults([]); setDeadResults([]); setFeed([]); }}
+              className="w-full py-2.5 border border-[#1e2d47] text-slate-400 hover:text-white text-[11px] font-bold rounded-xl transition-colors">
+              New Validation
             </button>
           </>
         )}
@@ -359,39 +340,10 @@ function ValidatorPanel({ onClose, onImportLive, onImportDead, soundEnabled, onP
   );
 }
 
-const LOGIN_STATUS_CONFIG: Record<LoginStatus, { label: string; color: string; dotClass: string; bgClass: string; borderClass: string }> = {
-  live:       { label: "Live ✅",            color: "text-green-400",  dotClass: "bg-green-400",  bgClass: "bg-green-900/20",  borderClass: "border-green-500/30" },
-  dead:       { label: "Dead ❌",            color: "text-red-500",    dotClass: "bg-red-500",    bgClass: "bg-red-900/15",    borderClass: "border-red-500/20" },
-  checkpoint: { label: "Checkpoint 🔒",      color: "text-yellow-400", dotClass: "bg-yellow-400", bgClass: "bg-yellow-900/20", borderClass: "border-yellow-500/30" },
-  "2fa":      { label: "2FA 🔑",             color: "text-blue-400",   dotClass: "bg-blue-400",   bgClass: "bg-blue-900/20",   borderClass: "border-blue-500/30" },
-  locked:     { label: "Locked 🚫",          color: "text-orange-400", dotClass: "bg-orange-400", bgClass: "bg-orange-900/20", borderClass: "border-orange-500/30" },
-  disabled:   { label: "Disabled 🛑",        color: "text-slate-500",  dotClass: "bg-slate-500",  bgClass: "bg-slate-900/30",  borderClass: "border-slate-600/30" },
-  wrongpass:  { label: "Wrong Password 🔐",  color: "text-pink-400",   dotClass: "bg-pink-400",   bgClass: "bg-pink-900/20",   borderClass: "border-pink-500/30" },
-};
-
-function highlightText(text: string, query: string): ReactNode {
-  if (!query.trim()) return text;
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return text;
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="bg-yellow-400 text-black rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>
-      {text.slice(idx + query.length)}
-    </>
-  );
-}
-
-function fontClass(size: "sm" | "base" | "lg"): string {
-  if (size === "base") return "text-base";
-  if (size === "lg") return "text-lg";
-  return "text-sm";
-}
-
-function timeAgo(dateVal: string | Date | null | undefined): string {
-  if (!dateVal) return "";
-  const diff = Date.now() - new Date(dateVal).getTime();
-  const days = Math.floor(diff / 86400000);
+function timeAgo(iso: string | Date | null | undefined): string {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(ms / 86400000);
   if (days === 0) return "today";
   if (days === 1) return "1d ago";
   if (days < 30) return `${days}d ago`;
@@ -407,16 +359,13 @@ function playChime(): void {
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = "sine"; osc.frequency.value = freq;
       const t = ctx.currentTime + i * 0.12;
       gain.gain.setValueAtTime(0, t);
       gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-      osc.start(t);
-      osc.stop(t + 0.26);
+      osc.start(t); osc.stop(t + 0.26);
     });
     setTimeout(() => ctx.close(), 2000);
   } catch {}
@@ -440,13 +389,11 @@ export default function Dashboard() {
   const [showCopyFmt, setShowCopyFmt] = useState(false);
   const [editingNote, setEditingNote] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
-  const [showBulkActions, setShowBulkActions] = useState(false);
   const [showCharts, setShowCharts] = useState(() => {
     try { return localStorage.getItem("fb_show_charts") === "true"; } catch { return false; }
   });
   const [chartPeriod, setChartPeriod] = useState<"7d" | "30d">("7d");
   const [extendedDays, setExtendedDays] = useState<{ date: string; count: number }[]>([]);
-  const [tagStats, setTagStats] = useState<{ tag: string; count: number }[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">(() => {
     try { return (localStorage.getItem("fb_font_size") as "sm" | "base" | "lg") ?? "sm"; } catch { return "sm"; }
@@ -488,7 +435,6 @@ export default function Dashboard() {
     return 0;
   });
   const [checkedToday, setCheckedToday] = useState(0);
-  const [dragOver, setDragOver] = useState(false);
   const [fetchingUids, setFetchingUids] = useState<Set<string>>(new Set());
   const [showPasswords, setShowPasswords] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
@@ -504,7 +450,6 @@ export default function Dashboard() {
   const fetchedUids = useRef<Set<string>>(new Set());
   const [failedUids, setFailedUids] = useState<Set<string>>(new Set());
   const analyticsRef = useRef<HTMLDivElement>(null);
-  const [activeNav, setActiveNav] = useState<"home" | "search" | "import" | "analytics" | "settings">("home");
 
   const { data: idsData, isLoading: idsLoading } = useListFacebookIds({
     query: { queryKey: getListFacebookIdsQueryKey() },
@@ -550,25 +495,6 @@ export default function Dashboard() {
       });
       const data = await r.json() as { imported?: number };
       toast({ description: `✅ Imported ${data.imported ?? 0} live IDs.` });
-      setShowValidator(false);
-      queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
-    } catch {
-      toast({ description: "Import failed", variant: "destructive" });
-    }
-  }, [queryClient, toast]);
-
-  const handleImportDead = useCallback(async (uids: string[]) => {
-    if (!uids.length) return;
-    try {
-      const r = await fetch("/api/facebook-ids", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: uids.join("\n"), defaultTag: "Dead" }),
-        credentials: "include",
-      });
-      const data = await r.json() as { imported?: number };
-      toast({ description: `💀 Imported ${data.imported ?? 0} dead IDs (tagged "Dead").` });
       setShowValidator(false);
       queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
@@ -624,9 +550,7 @@ export default function Dashboard() {
     fetchedUids.current.add(uid);
     setFetchingUids((prev) => new Set(prev).add(uid));
     try {
-      const res = await fetch(`/api/profile-lookup?uid=${encodeURIComponent(uid)}`, {
-        credentials: "include",
-      });
+      const res = await fetch(`/api/profile-lookup?uid=${encodeURIComponent(uid)}`, { credentials: "include" });
       if (res.ok) {
         const data: ProfileData = await res.json();
         if (data.name || data.username || data.followerCount || data.instagramUsername) {
@@ -645,31 +569,22 @@ export default function Dashboard() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) setLocation("/login");
-  }, [authLoading, isAuthenticated, setLocation]);
-
-  useEffect(() => {
-    setVisibleCount(50);
-  }, [sortMode, searchQuery]);
+  useEffect(() => { if (!authLoading && !isAuthenticated) setLocation("/login"); }, [authLoading, isAuthenticated, setLocation]);
+  useEffect(() => { setVisibleCount(50); }, [sortMode, searchQuery]);
 
   useEffect(() => {
     if (idsLoading) return;
     const el = listBottomRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) setVisibleCount((v) => v + 50);
-      },
+      (entries) => { if (entries[0].isIntersecting) setVisibleCount((v) => v + 50); },
       { threshold: 0, rootMargin: "0px 0px 300px 0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, [idsLoading]);
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-fb-theme", theme);
-  }, [theme]);
+  useEffect(() => { document.documentElement.setAttribute("data-fb-theme", theme); }, [theme]);
 
   useEffect(() => {
     return () => {
@@ -690,8 +605,7 @@ export default function Dashboard() {
       if (e.key === "Escape") {
         setShowSearch(false); setShowSort(false); setShowCopyFmt(false);
         setShowSettings(false); setSwipedId(null);
-        setSelected(new Set());
-        setEditingNote(null);
+        setSelected(new Set()); setEditingNote(null);
       }
     };
     window.addEventListener("keydown", handler);
@@ -702,13 +616,9 @@ export default function Dashboard() {
     if (!failedUids.size) return;
     setRetryingAll(true);
     const uids = [...failedUids];
-    for (const uid of uids) {
-      fetchedUids.current.delete(uid);
-    }
+    uids.forEach((uid) => { fetchedUids.current.delete(uid); });
     setFailedUids(new Set());
-    uids.forEach((uid, idx) => {
-      setTimeout(() => fetchProfile(uid), idx * 400);
-    });
+    uids.forEach((uid, idx) => { setTimeout(() => fetchProfile(uid), idx * 400); });
     setTimeout(() => setRetryingAll(false), uids.length * 400 + 1000);
     toast({ description: `🔄 Retrying ${uids.length} failed profiles…` });
   }, [failedUids, fetchProfile, toast]);
@@ -732,9 +642,7 @@ export default function Dashboard() {
     fetchedUids.current.clear();
     setFailedUids(new Set());
     setProfileData(new Map());
-    visibleItems.forEach((item, idx) => {
-      setTimeout(() => fetchProfile(item.uid), idx * 300);
-    });
+    visibleItems.forEach((item, idx) => { setTimeout(() => fetchProfile(item.uid), idx * 300); });
     toast({ description: "🔄 Re-fetching profiles…" });
   }, [fetchProfile, toast]);
 
@@ -743,11 +651,9 @@ export default function Dashboard() {
       e.preventDefault();
       const promptEvent = e as unknown as { prompt: () => void };
       setPwaPrompt(promptEvent);
-      // Auto-prompt on first visit (once only)
       try {
         if (!localStorage.getItem("fb_pwa_prompted")) {
           localStorage.setItem("fb_pwa_prompted", "1");
-          // Small delay so the page is fully loaded before showing the native dialog
           setTimeout(() => { promptEvent.prompt(); setPwaPrompt(null); }, 3000);
         }
       } catch {}
@@ -762,28 +668,15 @@ export default function Dashboard() {
     const today = new Date().toDateString();
     const todayCount = items.filter((i) => i.visitedAt && new Date(i.visitedAt).toDateString() === today).length;
     setCheckedToday(todayCount);
-
     const dateSets = new Set(items.filter((i) => i.visitedAt).map((i) => new Date(i.visitedAt!).toDateString()));
-    let s = 0;
-    const d = new Date();
-    while (dateSets.has(d.toDateString())) {
-      s++;
-      d.setDate(d.getDate() - 1);
-    }
+    let s = 0; const d = new Date();
+    while (dateSets.has(d.toDateString())) { s++; d.setDate(d.getDate() - 1); }
     setStreak(s);
     try {
       localStorage.setItem("fb_last_active", today);
       if (s > 0) localStorage.setItem("fb_streak_count", String(s));
     } catch {}
   }, [idsData]);
-
-  useEffect(() => {
-    if (!showCharts) return;
-    fetch("/api/facebook-ids/tag-stats", { credentials: "include" })
-      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-      .then((d) => setTagStats(d.tags ?? []))
-      .catch(() => {});
-  }, [showCharts, idsData]);
 
   useEffect(() => {
     if (!showCharts || chartPeriod !== "30d") return;
@@ -829,16 +722,12 @@ export default function Dashboard() {
         return tb - ta;
       }); break;
       case "name": items.sort((a, b) => {
-        const na = pd.get(a.uid)?.name ?? null;
-        const nb = pd.get(b.uid)?.name ?? null;
+        const na = pd.get(a.uid)?.name ?? null; const nb = pd.get(b.uid)?.name ?? null;
         if (na && nb) return na.localeCompare(nb);
-        if (na) return -1;
-        if (nb) return 1;
-        return 0;
+        if (na) return -1; if (nb) return 1; return 0;
       }); break;
       case "followers": items.sort((a, b) =>
-        parseFollowerNum(pd.get(b.uid)?.followerCount ?? null) -
-        parseFollowerNum(pd.get(a.uid)?.followerCount ?? null)
+        parseFollowerNum(pd.get(b.uid)?.followerCount ?? null) - parseFollowerNum(pd.get(a.uid)?.followerCount ?? null)
       ); break;
     }
     return items;
@@ -849,12 +738,10 @@ export default function Dashboard() {
     const visible = filteredItems.slice(0, visibleCount);
     const pending = visible.filter((item) => !fetchedUids.current.has(item.uid));
     if (pending.length === 0) return;
-    const BATCH = 2;
-    const DELAY = 800;
+    const BATCH = 2; const DELAY = 800;
     const timers: ReturnType<typeof setTimeout>[] = [];
     pending.forEach((item, idx) => {
-      const batchDelay = Math.floor(idx / BATCH) * DELAY;
-      const t = setTimeout(() => fetchProfile(item.uid), batchDelay);
+      const t = setTimeout(() => fetchProfile(item.uid), Math.floor(idx / BATCH) * DELAY);
       timers.push(t);
     });
     return () => timers.forEach(clearTimeout);
@@ -888,14 +775,12 @@ export default function Dashboard() {
     return null;
   }
 
-  const downloadJson = (items: typeof allItems, filename: string) => {
-    const data = items.map((i) => ({
-      uid: i.uid, password: i.password ?? null, note: i.note ?? null,
-      tag: i.tag ?? null, saved: i.pinned, checked: i.visited,
-      profile: profileData.get(i.uid) ?? null,
-    }));
-    downloadFile(JSON.stringify(data, null, 2), filename);
-  };
+  function highlightText(text: string, query: string) {
+    if (!query.trim()) return <>{text}</>;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return <>{text}</>;
+    return <>{text.slice(0, idx)}<mark className="bg-cyan-500/30 text-cyan-200 rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>{text.slice(idx + query.length)}</>;
+  }
 
   const formatText = (uid: string, password: string | null, accessToken?: string | null): string => {
     if (copyFormat === "uid") return uid;
@@ -925,8 +810,16 @@ export default function Dashboard() {
   };
 
   const downloadCsv = (items: typeof allItems, filename: string) => {
-    const rows = items.map((i) => `${i.uid},${i.password ?? ""},${i.note ?? ""},${i.tag ?? ""}`);
-    downloadFile(["uid,password,note,tag", ...rows].join("\n"), filename);
+    const rows = items.map((i) => `${i.uid},${i.password ?? ""},${i.note ?? ""}`);
+    downloadFile(["uid,password,note", ...rows].join("\n"), filename);
+  };
+
+  const downloadJson = (items: typeof allItems, filename: string) => {
+    const data = items.map((i) => ({
+      uid: i.uid, password: i.password ?? null, note: i.note ?? null,
+      saved: i.pinned, checked: i.visited, profile: profileData.get(i.uid) ?? null,
+    }));
+    downloadFile(JSON.stringify(data, null, 2), filename);
   };
 
   const getBulk = (type: "checked" | "unchecked" | "saved") => {
@@ -943,7 +836,6 @@ export default function Dashboard() {
     setSelected(selected.size === filteredItems.length ? new Set() : new Set(filteredItems.map((i) => i.id)));
 
   const selectedItems = filteredItems.filter((i) => selected.has(i.id));
-
   const bulkCheck = (val: boolean) => selectedItems.forEach((i) => updateMutation.mutate({ id: i.id, data: { visited: val } }));
   const bulkSave = (val: boolean) => selectedItems.forEach((i) => updateMutation.mutate({ id: i.id, data: { pinned: val } }));
   const bulkDelete = () => {
@@ -961,82 +853,172 @@ export default function Dashboard() {
     setEditingNote(null);
   };
 
-  const setTag = (id: number, tag: string | null) => {
-    updateMutation.mutate({ id, data: { tag } });
-  };
-
   const handleCopyAll = () => {
     const text = (selected.size > 0 ? selectedItems : filteredItems).map((i) => formatText(i.uid, i.password, i.accessToken)).join("\n");
-    copy(text, `Copied ${selected.size > 0 ? selectedItems.length : filteredItems.length} IDs`);
+    copy(text, `Copied ${selected.size > 0 ? selectedItems.length : filteredItems.length}`);
   };
 
   const handleSaveAll = () => {
-    const targets = selected.size > 0 ? selectedItems : filteredItems;
+    const targets = selected.size > 0 ? selectedItems : filteredItems.filter((i) => !i.pinned);
     targets.forEach((i) => updateMutation.mutate({ id: i.id, data: { pinned: true } }));
     toast({ description: `💾 Saved ${targets.length} IDs` });
   };
 
+  const fontClass = (fs: "sm" | "base" | "lg") =>
+    fs === "sm" ? "text-[11px]" : fs === "lg" ? "text-sm" : "text-xs";
+
   if (authLoading || !isAuthenticated) return null;
 
   return (
-    <div id="fb-root" ref={topRef} data-theme={theme} className="min-h-screen bg-[#070b16] text-white flex flex-col">
-      {/* Header */}
-      <header className="fb-header bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex items-center gap-2 sticky top-0 z-30">
-        <Shield className="h-5 w-5 text-cyan-400 shrink-0" />
-        <span className="font-bold text-sm text-white flex-1 truncate">
-          FB UID Manager Pro <span className="text-cyan-400">v2</span>
-        </span>
+    <div id="fb-root" ref={topRef} data-theme={theme} className="min-h-screen bg-[#060c17] text-white flex flex-col">
+
+      {/* Validator fullscreen */}
+      {showValidator && (
+        <ValidatorPanel
+          onClose={() => setShowValidator(false)}
+          onImportLive={handleImportLive}
+          soundEnabled={soundEnabled}
+          onPlayChime={playChime}
+        />
+      )}
+
+      {/* Undo toast */}
+      {undoItem && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#0d1627] border border-[#1e2d47] rounded-2xl px-4 py-2.5 shadow-2xl">
+          <span className="text-xs text-slate-400">Deleted</span>
+          <button onClick={handleUndo} className="flex items-center gap-1.5 text-xs text-cyan-400 font-bold hover:text-cyan-300">
+            <Undo2 className="h-3.5 w-3.5" /> Undo
+          </button>
+        </div>
+      )}
+
+      {/* Import modal */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#060c17]">
+          <div className="flex items-center gap-2 px-4 py-3 bg-[#0d1627] border-b border-[#1e2d47]">
+            <Plus className="h-4 w-4 text-cyan-400 shrink-0" />
+            <span className="font-bold text-sm flex-1">Import IDs</span>
+            <button onClick={() => setShowImport(false)} className="p-1.5 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="flex-1 flex flex-col gap-3 px-4 py-4">
+            <div className="bg-[#0d1627] rounded-2xl border border-[#1e2d47] p-4">
+              <div className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs</div>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                autoFocus
+                placeholder={"100044388870940\n100044388870940|password\nusername"}
+                rows={14}
+                className="w-full bg-[#060c17] border border-[#1e2d47] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500/50 resize-none"
+              />
+              <div className="text-[10px] text-slate-600 mt-2">
+                {importText.split("\n").filter((l) => l.trim()).length} lines · format: UID or UID|password
+              </div>
+            </div>
+            <button
+              onClick={() => importMutation.mutate({ data: { rawText: importText } })}
+              disabled={!importText.trim() || importMutation.isPending}
+              className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2">
+              {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Import
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── HEADER ─────────────────────────────────── */}
+      <header className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2 sticky top-0 z-30">
+        <Zap className="h-4 w-4 text-cyan-400 shrink-0" />
+        <span className="font-bold text-sm text-white flex-1">FB UIDs</span>
+
         {streak > 0 && (
-          <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
-            🔥 {streak}d
+          <span className="text-[10px] bg-orange-500/15 text-orange-400 border border-orange-500/25 px-1.5 py-0.5 rounded-full font-bold">
+            🔥{streak}d
           </span>
         )}
         {checkedToday > 0 && (
-          <span className="text-[10px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
+          <span className="text-[10px] bg-purple-500/15 text-purple-400 border border-purple-500/25 px-1.5 py-0.5 rounded-full font-bold">
             +{checkedToday}
           </span>
         )}
         {total > 0 && (
-          <span className="text-[10px] bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.5 rounded-full font-bold">
+          <span className="text-[10px] bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 px-1.5 py-0.5 rounded-full font-bold">
             {checkedPct}%
           </span>
         )}
+
         <div className="flex items-center gap-0.5">
           <button onClick={() => setShowPasswords((v) => !v)}
-            className={`p-1.5 rounded hover:bg-white/10 transition-colors ${showPasswords ? "text-yellow-400" : "text-slate-400 hover:text-white"}`}
-            title={showPasswords ? "Hide passwords" : "Show passwords"}>
+            className={`p-1.5 rounded-lg transition-colors ${showPasswords ? "text-yellow-400 bg-yellow-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
+            title="Toggle passwords">
             {showPasswords ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </button>
-          <button onClick={() => { setShowCopyFmt((v) => !v); setShowSort(false); setShowSearch(false); }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Copy format">
-            <Copy className="h-4 w-4" />
-          </button>
-          <button onClick={() => { setShowSearch((v) => !v); setShowSort(false); setShowCopyFmt(false); }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Search [/]">
+          <button onClick={() => { setShowSearch((v) => !v); setShowSort(false); setShowCopyFmt(false); setShowSettings(false); }}
+            className={`p-1.5 rounded-lg transition-colors ${showSearch ? "text-cyan-400 bg-cyan-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
+            title="Search [/]">
             <Search className="h-4 w-4" />
           </button>
           <button onClick={() => { setShowSort((v) => !v); setShowSearch(false); setShowCopyFmt(false); setShowSettings(false); }}
-            className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Sort">
+            className={`p-1.5 rounded-lg transition-colors ${showSort ? "text-cyan-400 bg-cyan-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
+            title="Sort">
             <SortAsc className="h-4 w-4" />
           </button>
           <button onClick={() => { setShowSettings((v) => !v); setShowSort(false); setShowSearch(false); setShowCopyFmt(false); }}
-            className={`p-1.5 rounded hover:bg-white/10 transition-colors ${showSettings ? "text-cyan-400" : "text-slate-400 hover:text-white"}`} title="Settings">
+            className={`p-1.5 rounded-lg transition-colors ${showSettings ? "text-cyan-400 bg-cyan-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
+            title="Settings">
             <Settings className="h-4 w-4" />
           </button>
-          <button onClick={logout} className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Logout">
+          <button onClick={logout}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors" title="Logout">
             <LogOut className="h-4 w-4" />
           </button>
           <button onClick={() => setShowImport(true)}
-            className="ml-1 flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-[#070b16] text-xs font-bold px-2.5 py-1.5 rounded transition-colors">
-            <Plus className="h-3.5 w-3.5" /> New
+            className="ml-1 flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-[#060c17] text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors">
+            <Plus className="h-3.5 w-3.5" /> Add
           </button>
         </div>
       </header>
 
+      {/* Search bar */}
+      {showSearch && (
+        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2">
+          <Search className="h-4 w-4 text-slate-500 shrink-0" />
+          <input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search UIDs, names, notes…"
+            className="flex-1 bg-transparent text-sm text-white placeholder-slate-600 outline-none" />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="text-slate-500 hover:text-white"><X className="h-4 w-4" /></button>
+          )}
+        </div>
+      )}
+
+      {/* Sort panel */}
+      {showSort && (
+        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-3 flex flex-wrap gap-1.5">
+          {([
+            { key: "newest",    label: "🆕 Newest" },
+            { key: "oldest",    label: "📅 Oldest" },
+            { key: "alpha",     label: "🔤 A→Z" },
+            { key: "name",      label: "👤 Name" },
+            { key: "followers", label: "👥 Followers" },
+            { key: "recent",    label: "🕐 Last visited" },
+            { key: "checked",   label: "✅ Checked" },
+            { key: "unchecked", label: "⏳ Unchecked" },
+            { key: "saved",     label: "💾 Saved" },
+          ] as { key: SortMode; label: string }[]).map(({ key, label }) => (
+            <button key={key} onClick={() => { setSortMode(key); setShowSort(false); }}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors
+                ${sortMode === key ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-400 hover:text-white hover:border-slate-500"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Copy format panel */}
       {showCopyFmt && (
-        <div className="bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] text-slate-500 uppercase mr-1">Copy as:</span>
+        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] text-slate-600 uppercase tracking-wider mr-1">Copy as:</span>
           {([
             { key: "both",  label: "UID|Pass" },
             { key: "uid",   label: "UID only" },
@@ -1045,42 +1027,8 @@ export default function Dashboard() {
             { key: "token", label: "UID|Pass|Token" },
           ] as { key: CopyFormat; label: string }[]).map(({ key, label }) => (
             <button key={key} onClick={() => { setCopyFormat(key); setShowCopyFmt(false); }}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors
-                ${copyFormat === key ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Search bar */}
-      {showSearch && (
-        <div className="bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex items-center gap-2">
-          <Search className="h-4 w-4 text-slate-400 shrink-0" />
-          <input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search UIDs or notes..."
-            className="flex-1 bg-transparent text-sm text-white placeholder-slate-600 outline-none" />
-          {searchQuery && <button onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>}
-        </div>
-      )}
-
-      {/* Sort panel */}
-      {showSort && (
-        <div className="fb-panel bg-[#0c1122] border-b border-[#1a2540] px-3 py-2 flex flex-wrap gap-1.5">
-          {([
-            { key: "newest",    label: "🆕 Newest" },
-            { key: "oldest",    label: "📅 Oldest" },
-            { key: "alpha",     label: "🔤 A→Z" },
-            { key: "name",      label: "👤 By Name" },
-            { key: "followers", label: "👥 Most Followers" },
-            { key: "recent",    label: "🕐 Last visited" },
-            { key: "checked",   label: "✅ Checked first" },
-            { key: "unchecked", label: "⏳ Unchecked first" },
-            { key: "saved",     label: "💾 Saved first" },
-          ] as { key: SortMode; label: string }[]).map(({ key, label }) => (
-            <button key={key} onClick={() => { setSortMode(key); setShowSort(false); }}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors
-                ${sortMode === key ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors
+                ${copyFormat === key ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-400 hover:text-white"}`}>
               {label}
             </button>
           ))}
@@ -1089,92 +1037,96 @@ export default function Dashboard() {
 
       {/* Settings panel */}
       {showSettings && (
-        <div className="fb-panel bg-[#0c1122] border-b border-[#1a2540] px-3 py-3 space-y-3">
-          <div className="flex items-center gap-2">
-            <Type className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">Font Size</span>
+        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-3 space-y-3">
+          {/* Font size */}
+          <div className="flex items-center gap-3">
+            <Type className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Font</span>
             <div className="flex gap-1.5">
               {(["sm", "base", "lg"] as const).map((s) => (
                 <button key={s} onClick={() => { setFontSize(s); try { localStorage.setItem("fb_font_size", s); } catch {} }}
                   className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                    ${fontSize === s ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                    ${fontSize === s ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-400 hover:text-white"}`}>
                   {s === "sm" ? "S" : s === "base" ? "M" : "L"}
                 </button>
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <List className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">View</span>
+          {/* View mode */}
+          <div className="flex items-center gap-3">
+            <List className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">View</span>
             <div className="flex gap-1.5">
               <button onClick={() => { setViewMode("list"); try { localStorage.setItem("fb_view_mode", "list"); } catch {} }}
                 className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                  ${viewMode === "list" ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                  ${viewMode === "list" ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-400 hover:text-white"}`}>
                 <List className="h-3 w-3" /> Full
               </button>
               <button onClick={() => { setViewMode("compact"); try { localStorage.setItem("fb_view_mode", "compact"); } catch {} }}
                 className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                  ${viewMode === "compact" ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                  ${viewMode === "compact" ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-400 hover:text-white"}`}>
                 <Grid3x3 className="h-3 w-3" /> Compact
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {theme === "dark" ? <Moon className="h-3.5 w-3.5 text-slate-500 shrink-0" /> : <Sun className="h-3.5 w-3.5 text-yellow-400 shrink-0" />}
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">Theme</span>
+          {/* Theme */}
+          <div className="flex items-center gap-3">
+            {theme === "dark" ? <Moon className="h-3.5 w-3.5 text-slate-600 shrink-0" /> : <Sun className="h-3.5 w-3.5 text-yellow-400 shrink-0" />}
+            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Theme</span>
             <div className="flex gap-1.5">
               {(["dark", "light"] as const).map((t) => (
                 <button key={t} onClick={() => { setTheme(t); try { localStorage.setItem("fb_theme", t); } catch {} }}
                   className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                    ${theme === t ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+                    ${theme === t ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-400 hover:text-white"}`}>
                   {t === "dark" ? <><Moon className="h-2.5 w-2.5" /> Dark</> : <><Sun className="h-2.5 w-2.5" /> Light</>}
                 </button>
               ))}
             </div>
           </div>
-          {/* Sound notifications */}
-          <div className="flex items-center gap-2">
-            {soundEnabled ? <Bell className="h-3.5 w-3.5 text-slate-500 shrink-0" /> : <BellOff className="h-3.5 w-3.5 text-slate-600 shrink-0" />}
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">Sounds</span>
+          {/* Copy format shortcut */}
+          <div className="flex items-center gap-3">
+            <Copy className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Copy</span>
+            <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
+              className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full border border-[#1e2d47] text-slate-400 hover:text-white transition-colors">
+              {copyFormat === "both" ? "UID|Pass" : copyFormat === "uid" ? "UID only" : copyFormat === "pass" ? "Pass only" : copyFormat === "named" ? "Named" : "With Token"} ›
+            </button>
+          </div>
+          {/* Sound */}
+          <div className="flex items-center gap-3">
+            {soundEnabled ? <Bell className="h-3.5 w-3.5 text-slate-600 shrink-0" /> : <BellOff className="h-3.5 w-3.5 text-slate-700 shrink-0" />}
+            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Sound</span>
             <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); try { localStorage.setItem("fb_sound_enabled", String(next)); } catch {} if (next) playChime(); }}
-              className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                ${soundEnabled ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
+              className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors
+                ${soundEnabled ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-400 hover:text-white"}`}>
               {soundEnabled ? "On" : "Off"}
             </button>
           </div>
-          {/* Global Proxies */}
-          <div className="flex items-start gap-2">
-            <Wifi className="h-3.5 w-3.5 text-slate-500 shrink-0 mt-1" />
-            <div className="flex-1 space-y-1">
+          {/* Proxies */}
+          <div className="flex items-start gap-3">
+            <Wifi className="h-3.5 w-3.5 text-slate-600 shrink-0 mt-1" />
+            <div className="flex-1 space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider">Proxies</span>
+                <span className="text-[11px] text-slate-500 uppercase tracking-wider">Proxies</span>
                 {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length > 0 && (
-                  <span className="text-[9px] text-cyan-400">
+                  <span className="text-[10px] text-cyan-400">
                     {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length} loaded
                   </span>
                 )}
               </div>
-              <textarea
-                value={globalProxies}
-                onChange={(e) => {
-                  setGlobalProxies(e.target.value);
-                  try { localStorage.setItem("fb_proxies", e.target.value); } catch {}
-                }}
-                rows={3}
-                placeholder={"http://user:pass@host:port\nsocks5://host:port"}
-                className="w-full bg-[#070b16] border border-[#1a2540] text-slate-300 placeholder-slate-700 text-[10px] font-mono px-2 py-1.5 rounded-lg outline-none focus:border-cyan-500/50 resize-none"
-              />
-              <div className="text-[9px] text-slate-700">Used by Login Checker. One per line.</div>
+              <textarea value={globalProxies}
+                onChange={(e) => { setGlobalProxies(e.target.value); try { localStorage.setItem("fb_proxies", e.target.value); } catch {}; }}
+                rows={3} placeholder={"http://user:pass@host:port\nsocks5://host:port"}
+                className="w-full bg-[#060c17] border border-[#1e2d47] text-slate-300 placeholder-slate-700 text-[10px] font-mono px-2 py-1.5 rounded-lg outline-none focus:border-cyan-500/50 resize-none" />
             </div>
           </div>
-
           {/* PWA install */}
           {pwaPrompt && (
-            <div className="flex items-center gap-2">
-              <Smartphone className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20">App</span>
+            <div className="flex items-center gap-3">
+              <Smartphone className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+              <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">App</span>
               <button onClick={() => { pwaPrompt.prompt(); setPwaPrompt(null); }}
-                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20 transition-colors">
+                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/15 transition-colors">
                 📲 Add to Home Screen
               </button>
             </div>
@@ -1184,283 +1136,199 @@ export default function Dashboard() {
 
       {/* Bulk actions bar */}
       {selected.size > 0 && (
-        <div className="fb-bulk-bar bg-[#0d1a2e] border-b border-cyan-500/30 px-3 py-2 sticky top-[45px] z-20">
+        <div className="bg-[#0d1a2e] border-b border-cyan-500/25 px-4 py-2.5 sticky top-[45px] z-20">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-cyan-400 font-bold">{selected.size} selected</span>
+            <span className="text-xs text-cyan-400 font-bold shrink-0">{selected.size} selected</span>
             <div className="flex-1 flex flex-wrap gap-1.5">
-              <button onClick={bulkCopy} className="text-[10px] bg-cyan-700/40 hover:bg-cyan-600/50 text-cyan-300 px-2 py-1 rounded flex items-center gap-1">
+              <button onClick={bulkCopy}
+                className="text-[10px] bg-cyan-700/30 hover:bg-cyan-600/40 text-cyan-300 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
                 <Copy className="h-2.5 w-2.5" /> Copy
               </button>
-              <button onClick={() => bulkCheck(true)} className="text-[10px] bg-emerald-700/40 hover:bg-emerald-600/50 text-emerald-300 px-2 py-1 rounded">✅ Check</button>
-              <button onClick={() => bulkCheck(false)} className="text-[10px] bg-slate-700/40 hover:bg-slate-600/50 text-slate-300 px-2 py-1 rounded">⬜ Uncheck</button>
-              <button onClick={() => bulkSave(true)} className="text-[10px] bg-green-700/40 hover:bg-green-600/50 text-green-300 px-2 py-1 rounded">💾 Save</button>
-              <button onClick={bulkDelete} className="text-[10px] bg-red-700/40 hover:bg-red-600/50 text-red-300 px-2 py-1 rounded flex items-center gap-1">
+              <button onClick={() => bulkCheck(true)}
+                className="text-[10px] bg-emerald-700/30 hover:bg-emerald-600/40 text-emerald-300 px-2.5 py-1 rounded-lg transition-colors">✅ Check</button>
+              <button onClick={() => bulkCheck(false)}
+                className="text-[10px] bg-slate-700/30 hover:bg-slate-600/40 text-slate-300 px-2.5 py-1 rounded-lg transition-colors">⬜ Uncheck</button>
+              <button onClick={() => bulkSave(true)}
+                className="text-[10px] bg-green-700/30 hover:bg-green-600/40 text-green-300 px-2.5 py-1 rounded-lg transition-colors">💾 Save</button>
+              <button onClick={bulkDelete}
+                className="text-[10px] bg-red-700/30 hover:bg-red-600/40 text-red-300 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
                 <Trash2 className="h-2.5 w-2.5" /> Delete
               </button>
             </div>
-            <button onClick={() => setSelected(new Set())} className="text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
+            <button onClick={() => setSelected(new Set())} className="text-slate-500 hover:text-white transition-colors">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}
 
-      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-2 py-3 gap-3">
+      {/* ─── MAIN CONTENT ───────────────────────────── */}
+      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-3 py-3 gap-3">
 
-        {/* Stats */}
-        <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3">
-          <div className="grid grid-cols-4 gap-1 mb-3">
+        {/* Stats row */}
+        <div className="bg-[#0d1627] rounded-2xl border border-[#1e2d47] p-4">
+          <div className="grid grid-cols-4 gap-2 mb-3">
             {[
-              { label: "Total", val: total, color: "text-white" },
+              { label: "Total",   val: total,   color: "text-white" },
               { label: "Checked", val: checked, color: "text-purple-400" },
-              { label: "Left", val: left, color: "text-red-400" },
-              { label: "Saved", val: saved, color: "text-green-400" },
+              { label: "Saved",   val: saved,   color: "text-green-400" },
+              { label: "Left",    val: left,    color: "text-red-400" },
             ].map(({ label, val, color }) => (
               <div key={label} className="text-center">
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider">{label}</div>
-                <div className={`text-2xl font-bold ${color}`}>{val}</div>
+                <div className="text-[9px] text-slate-600 uppercase tracking-widest mb-0.5">{label}</div>
+                <div className={`text-xl font-bold tabular-nums ${color}`}>{val}</div>
               </div>
             ))}
           </div>
-          <div className="h-1.5 bg-[#1a2540] rounded-full overflow-hidden mb-2">
-            <div className="h-full rounded-full transition-all duration-500"
+          <div className="h-1.5 bg-[#1e2d47] rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700"
               style={{ width: `${checkedPct}%`, background: "linear-gradient(90deg,#6366f1,#06b6d4,#22c55e)" }} />
           </div>
-          {/* Quick stat pills */}
-          <div className="flex gap-1.5 flex-wrap">
-            {profileData.size > 0 && (
-              <span className="text-[9px] bg-purple-900/30 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">
-                👤 {profileData.size} profiles
-              </span>
-            )}
-          </div>
+          {fetchingUids.size > 0 && (
+            <div className="flex items-center gap-1.5 mt-2 text-[10px] text-cyan-600/70">
+              <Loader2 className="h-2.5 w-2.5 animate-spin" /> {fetchingUids.size} profiles loading…
+            </div>
+          )}
         </div>
 
-        {/* Action buttons */}
-        <div className="grid grid-cols-5 gap-1.5">
-          {[
-            { label: "SEARCH", icon: <Search className="h-3.5 w-3.5" />, action: () => { setShowSearch((v) => !v); setShowSort(false); } },
-            { label: "SAVE ALL", icon: <Download className="h-3.5 w-3.5" />, action: handleSaveAll },
-            { label: "COPY ALL", icon: <Copy className="h-3.5 w-3.5" />, action: handleCopyAll },
-            { label: "SORT", icon: <SortAsc className="h-3.5 w-3.5" />, action: () => { setShowSort((v) => !v); setShowSearch(false); } },
-          ].map(({ label, icon, action }) => (
-            <button key={label} onClick={action}
-              className="flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold text-slate-400 hover:text-white hover:border-cyan-500/40 transition-colors">
-              {icon}{label}
-            </button>
-          ))}
-          <button
-            onClick={() => handleRefetchAll(filteredItems.slice(0, visibleCount))}
-            title="Re-fetch all visible profiles"
-            className="flex flex-col items-center gap-1 bg-[#0c1122] border border-[#1a2540] rounded-lg py-2 px-1 text-[10px] font-bold text-purple-400 hover:text-purple-200 hover:border-purple-500/40 transition-colors">
-            <RefreshCw className="h-3.5 w-3.5" />REFETCH
+        {/* Action bar */}
+        <div className="flex gap-2">
+          <button onClick={handleCopyAll}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#0d1627] border border-[#1e2d47] hover:border-cyan-500/40 text-slate-400 hover:text-white rounded-xl py-2.5 text-[11px] font-bold transition-colors">
+            <Copy className="h-3.5 w-3.5" /> Copy All
+          </button>
+          <button onClick={handleSaveAll}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#0d1627] border border-[#1e2d47] hover:border-green-500/40 text-slate-400 hover:text-green-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
+            <Download className="h-3.5 w-3.5" /> Save All
+          </button>
+          <button onClick={() => handleRefetchAll(filteredItems.slice(0, visibleCount))}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#0d1627] border border-[#1e2d47] hover:border-purple-500/40 text-slate-400 hover:text-purple-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Refetch
+          </button>
+          <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
+            className={`flex items-center justify-center gap-1.5 bg-[#0d1627] border rounded-xl py-2.5 px-3 text-[11px] font-bold transition-colors
+              ${showCopyFmt ? "border-cyan-500/50 text-cyan-400" : "border-[#1e2d47] text-slate-500 hover:text-white hover:border-slate-500"}`}>
+            <Copy className="h-3.5 w-3.5" />
           </button>
         </div>
-        {/* Validate button — full-width below the 5-column grid */}
-        <button
-          onClick={() => setShowValidator(true)}
-          className="w-full flex items-center justify-center gap-2 bg-green-900/20 border border-green-500/30 hover:border-green-400/50 text-green-400 hover:text-green-200 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
-          <Zap className="h-3.5 w-3.5" /> BULK VALIDATE — LIVE / DEAD CHECK
+
+        {/* Validate button */}
+        <button onClick={() => setShowValidator(true)}
+          className="w-full flex items-center justify-center gap-2 bg-green-900/20 border border-green-500/25 hover:border-green-400/50 hover:bg-green-900/30 text-green-400 hover:text-green-200 rounded-xl py-2.5 text-[11px] font-bold transition-all">
+          <Zap className="h-3.5 w-3.5" /> Bulk Validate — Live / Dead Check
         </button>
 
-        {/* Analytics toggle */}
-        <button
-          ref={analyticsRef as unknown as React.RefObject<HTMLButtonElement>}
-          onClick={() => {
-            const next = !showCharts;
-            setShowCharts(next);
-            try { localStorage.setItem("fb_show_charts", String(next)); } catch {}
-          }}
-          className="flex items-center justify-between w-full bg-[#0c1122] border border-[#1a2540] rounded-xl px-3 py-2.5 text-xs text-slate-400 hover:text-white hover:border-cyan-500/40 transition-colors"
-        >
-          <span className="flex items-center gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> Analytics</span>
-          {showCharts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
+        {/* Analytics */}
+        <div ref={analyticsRef}>
+          <button
+            onClick={() => { const next = !showCharts; setShowCharts(next); try { localStorage.setItem("fb_show_charts", String(next)); } catch {}; }}
+            className="flex items-center justify-between w-full bg-[#0d1627] border border-[#1e2d47] hover:border-slate-600 rounded-xl px-4 py-2.5 text-xs text-slate-500 hover:text-white transition-colors">
+            <span className="flex items-center gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> Analytics</span>
+            {showCharts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
 
-        {/* Charts panel */}
-        {showCharts && (() => {
-          const tagColors = ["#f59e0b", "#ef4444", "#3b82f6", "#22c55e", "#64748b", "#8b5cf6", "#06b6d4", "#f97316"];
-          const FIXED_TAG_BUCKETS = ["VIP", "Hot", "New", "Done", "Skip", "Untagged"];
-          const tagMap = new Map(tagStats.map((t) => [t.tag, t.count]));
-          const normalizedTags = FIXED_TAG_BUCKETS.map((t) => ({ tag: t, count: tagMap.get(t) ?? 0 }));
-          const hasAnyTag = normalizedTags.some((t) => t.count > 0);
-          const sortedTags = hasAnyTag ? normalizedTags.sort((a, b) => b.count - a.count) : [];
-          const chartDays = chartPeriod === "30d" ? extendedDays : (dailyData?.days ?? []);
-          const barSize = chartPeriod === "30d" ? 6 : 16;
-          return (
-            <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] p-3 space-y-4">
-
-              {/* Stat row: profiles fetched */}
-              {profileData.size > 0 && (
-                <div className="flex items-center gap-2 bg-purple-900/20 border border-purple-500/20 rounded-lg px-3 py-2">
-                  <User className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-                  <span className="text-[11px] text-purple-300 font-semibold">{profileData.size} profile{profileData.size !== 1 ? "s" : ""} with info fetched this session</span>
-                </div>
-              )}
-
-              {/* Pie: Status Breakdown */}
-              <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Status Breakdown</div>
-                <ResponsiveContainer width="100%" height={160}>
-                  <PieChart>
-                    <Pie
-                      data={[
+          {showCharts && (() => {
+            const chartDays = chartPeriod === "30d" ? extendedDays : (dailyData?.days ?? []);
+            const barSize = chartPeriod === "30d" ? 6 : 16;
+            return (
+              <div className="bg-[#0d1627] rounded-2xl border border-[#1e2d47] p-4 space-y-4 mt-2">
+                {/* Status donut */}
+                <div>
+                  <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-2">Status Breakdown</div>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <PieChart>
+                      <Pie data={[
                         { name: "Checked", value: checked || 0 },
                         { name: "Unchecked", value: left || 0 },
                         { name: "Saved", value: saved || 0 },
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={68}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      <Cell fill="#a855f7" />
-                      <Cell fill="#ef4444" />
-                      <Cell fill="#22c55e" />
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
-                      itemStyle={{ color: "#e2e8f0" }}
-                    />
-                    <Legend
-                      iconType="circle"
-                      iconSize={8}
-                      formatter={(v) => <span style={{ fontSize: 10, color: "#94a3b8" }}>{v}</span>}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Pie: Tag Distribution */}
-              {sortedTags.length > 0 && (
-                <div>
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Tag Distribution</div>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <PieChart>
-                      <Pie
-                        data={sortedTags}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={68}
-                        paddingAngle={3}
-                        dataKey="count"
-                        nameKey="tag"
-                      >
-                        {sortedTags.map((_, i) => (
-                          <Cell key={i} fill={tagColors[i % tagColors.length]} />
-                        ))}
+                      ]} cx="50%" cy="50%" innerRadius={38} outerRadius={65} paddingAngle={3} dataKey="value">
+                        <Cell fill="#a855f7" />
+                        <Cell fill="#334155" />
+                        <Cell fill="#22c55e" />
                       </Pie>
-                      <Tooltip
-                        contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
-                        itemStyle={{ color: "#e2e8f0" }}
-                        formatter={(v, n) => [`${v} IDs`, n]}
-                      />
-                      <Legend
-                        iconType="circle"
-                        iconSize={8}
-                        formatter={(v) => <span style={{ fontSize: 10, color: "#94a3b8" }}>{v}</span>}
-                      />
+                      <Tooltip contentStyle={{ background: "#0d1627", border: "1px solid #1e2d47", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
+                      <Legend iconType="circle" iconSize={7} formatter={(v) => <span style={{ fontSize: 10, color: "#64748b" }}>{v}</span>} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-              )}
 
-              {/* Pie: Login Status Distribution */}
-              {(() => {
-                if (allItems.length === 0) return null;
-                const lsColors: Record<string, string> = {
-                  live: "#22c55e", dead: "#ef4444", checkpoint: "#f59e0b",
-                  "2fa": "#3b82f6", locked: "#f97316", disabled: "#64748b",
-                  wrongpass: "#ec4899", unchecked: "#334155",
-                };
-                const lsCounts = allItems.reduce<Record<string, number>>((acc, i) => {
-                  const k = i.loginStatus ? i.loginStatus : "unchecked";
-                  acc[k] = (acc[k] ?? 0) + 1;
-                  return acc;
-                }, {});
-                const lsData = Object.entries(lsCounts)
-                  .filter(([, v]) => v > 0)
-                  .map(([k, v]) => ({ name: k === "unchecked" ? "NOT CHECKED" : k.toUpperCase(), value: v, fill: lsColors[k] ?? "#8b5cf6" }));
-                const checkedCount = allItems.filter((i) => i.loginStatus).length;
-                const lastChecked = allItems.map((i) => i.lastChecked).filter(Boolean).sort().at(-1);
-                return (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Login Status</div>
-                      {lastChecked && <span className="text-[9px] text-slate-600">last checked {timeAgo(lastChecked)}</span>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ResponsiveContainer width="55%" height={120}>
-                        <PieChart>
-                          <Pie data={lsData} cx="50%" cy="50%" innerRadius={30} outerRadius={55} paddingAngle={3} dataKey="value">
-                            {lsData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="flex flex-col gap-1 flex-1">
-                        {lsData.map((d) => (
-                          <div key={d.name} className="flex items-center gap-1.5 text-[10px]">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.fill }} />
-                            <span className="text-slate-400 flex-1">{d.name}</span>
-                            <span className="font-bold text-slate-300">{d.value}</span>
-                          </div>
-                        ))}
-                        <div className="text-[9px] text-slate-600 mt-0.5">{checkedCount}/{allItems.length} checked</div>
+                {/* Login status */}
+                {(() => {
+                  if (allItems.length === 0) return null;
+                  const lsColors: Record<string, string> = {
+                    live: "#22c55e", dead: "#ef4444", checkpoint: "#f59e0b",
+                    "2fa": "#3b82f6", locked: "#f97316", disabled: "#64748b",
+                    wrongpass: "#ec4899", unchecked: "#1e2d47",
+                  };
+                  const lsCounts = allItems.reduce<Record<string, number>>((acc, i) => {
+                    const k = i.loginStatus ?? "unchecked";
+                    acc[k] = (acc[k] ?? 0) + 1; return acc;
+                  }, {});
+                  const lsData = Object.entries(lsCounts).filter(([, v]) => v > 0)
+                    .map(([k, v]) => ({ name: k === "unchecked" ? "Not Checked" : k.toUpperCase(), value: v, fill: lsColors[k] ?? "#8b5cf6" }));
+                  const lastChecked = allItems.map((i) => i.lastChecked).filter(Boolean).sort().at(-1);
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] text-slate-600 uppercase tracking-wider">Login Status</div>
+                        {lastChecked && <span className="text-[9px] text-slate-700">last {timeAgo(lastChecked)}</span>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <ResponsiveContainer width="50%" height={110}>
+                          <PieChart>
+                            <Pie data={lsData} cx="50%" cy="50%" innerRadius={28} outerRadius={52} paddingAngle={3} dataKey="value">
+                              {lsData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                            </Pie>
+                            <Tooltip contentStyle={{ background: "#0d1627", border: "1px solid #1e2d47", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="flex flex-col gap-1 flex-1">
+                          {lsData.map((d) => (
+                            <div key={d.name} className="flex items-center gap-1.5 text-[10px]">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.fill }} />
+                              <span className="text-slate-500 flex-1 truncate">{d.name}</span>
+                              <span className="font-bold text-slate-300">{d.value}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
-              {/* Bar: Activity chart with period toggle */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">
-                    Check Activity
+                {/* Activity bar chart */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] text-slate-600 uppercase tracking-wider">Check Activity</div>
+                    <div className="flex gap-1">
+                      {(["7d", "30d"] as const).map((p) => (
+                        <button key={p} onClick={() => setChartPeriod(p)}
+                          className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors
+                            ${chartPeriod === p ? "bg-cyan-500 border-cyan-500 text-[#060c17] font-bold" : "border-[#1e2d47] text-slate-500 hover:text-white"}`}>
+                          {p}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    {(["7d", "30d"] as const).map((p) => (
-                      <button key={p} onClick={() => setChartPeriod(p)}
-                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors
-                          ${chartPeriod === p ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
-                        {p === "7d" ? "7 Days" : "30 Days"}
-                      </button>
-                    ))}
-                  </div>
+                  <ResponsiveContainer width="100%" height={110}>
+                    <BarChart data={chartDays} barSize={barSize}>
+                      <XAxis dataKey="date"
+                        tickFormatter={(d: string) => { const dt = new Date(d + "T00:00:00"); return `${dt.getMonth() + 1}/${dt.getDate()}`; }}
+                        tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false}
+                        interval={chartPeriod === "30d" ? 4 : 0} />
+                      <Tooltip contentStyle={{ background: "#0d1627", border: "1px solid #1e2d47", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }}
+                        labelFormatter={(d: string) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }} />
+                      <Bar dataKey="count" name="Checks" fill="#06b6d4" radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-                <ResponsiveContainer width="100%" height={120}>
-                  <BarChart data={chartDays} barSize={barSize}>
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={(d: string) => {
-                        const dt = new Date(d + "T00:00:00");
-                        return `${dt.getMonth() + 1}/${dt.getDate()}`;
-                      }}
-                      tick={{ fontSize: 10, fill: "#64748b" }}
-                      axisLine={false}
-                      tickLine={false}
-                      interval={chartPeriod === "30d" ? 4 : 0}
-                    />
-                    <Tooltip
-                      contentStyle={{ background: "#0c1122", border: "1px solid #1a2540", borderRadius: 8, fontSize: 11 }}
-                      itemStyle={{ color: "#e2e8f0" }}
-                      labelFormatter={(d: string) => {
-                        const dt = new Date(d + "T00:00:00");
-                        return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-                      }}
-                    />
-                    <Bar dataKey="count" name="Checks" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
+        </div>
 
-        {/* Export rows */}
-        <div className="bg-[#0c1122] rounded-xl border border-[#1a2540] overflow-hidden divide-y divide-[#1a2540]">
+        {/* Export section */}
+        <div className="bg-[#0d1627] rounded-2xl border border-[#1e2d47] overflow-hidden divide-y divide-[#1e2d47]">
           {[
             { label: "✅ Checked", type: "checked" as const },
             { label: "⏳ Unchecked", type: "unchecked" as const },
@@ -1469,152 +1337,125 @@ export default function Dashboard() {
             const items = getBulk(type);
             const text = items.map((i) => formatText(i.uid, i.password, i.accessToken)).join("\n");
             return (
-              <div key={type} className="flex items-center px-3 py-2.5 gap-2">
+              <div key={type} className="flex items-center px-4 py-2.5 gap-2">
                 <span className="text-xs text-slate-300 flex-1 font-medium">{label}
                   <span className="ml-1.5 text-[10px] text-slate-600">({items.length})</span>
                 </span>
                 <div className="flex gap-1.5">
                   <button onClick={() => copy(text, `Copied ${items.length}`)}
-                    className="text-[10px] bg-[#1a2540] hover:bg-[#243050] text-slate-300 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1">
+                    className="text-[10px] bg-[#1e2d47] hover:bg-[#243050] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                     <Copy className="h-2.5 w-2.5" /> Copy
                   </button>
                   <button onClick={() => downloadFile(text, `${type}.txt`)}
-                    className="text-[10px] bg-[#1a2540] hover:bg-[#243050] text-slate-300 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1">
-                    <Download className="h-2.5 w-2.5" /> .txt
-                  </button>
-                  <button onClick={() => downloadCsv(items, `${type}.csv`)}
-                    className="text-[10px] bg-[#1a2540] hover:bg-[#243050] text-slate-300 hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1">
-                    <Download className="h-2.5 w-2.5" /> .csv
+                    className="text-[10px] bg-[#1e2d47] hover:bg-[#243050] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                    <Download className="h-2.5 w-2.5" /> txt
                   </button>
                   <button onClick={() => downloadJson(items, `${type}.json`)}
-                    className="text-[10px] bg-emerald-900/40 hover:bg-emerald-800/50 text-emerald-300 hover:text-emerald-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
-                    <Download className="h-2.5 w-2.5" /> .json
+                    className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-cyan-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                    <Download className="h-2.5 w-2.5" /> json
                   </button>
                 </div>
               </div>
             );
           })}
-          {/* Export All JSON */}
-          <div className="flex items-center px-3 py-2.5 gap-2">
-            <span className="text-xs text-slate-300 flex-1 font-medium">🌐 All IDs + Profiles
+          <div className="flex items-center px-4 py-2.5 gap-2">
+            <span className="text-xs text-slate-300 flex-1 font-medium">🌐 All + Profiles
               <span className="ml-1.5 text-[10px] text-slate-600">({allItems.length})</span>
             </span>
             <div className="flex gap-1.5">
               <button onClick={() => downloadJson(allItems, "all-facebook-ids.json")}
-                className="text-[10px] bg-cyan-900/40 hover:bg-cyan-800/50 text-cyan-300 hover:text-cyan-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
-                <Sparkles className="h-2.5 w-2.5" /> Full JSON
+                className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-cyan-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                <Download className="h-2.5 w-2.5" /> Full JSON
               </button>
-              {(() => { const igs = allItems.filter(i => profileData.get(i.uid)?.instagramUsername).map(i => profileData.get(i.uid)!.instagramUsername); return igs.length > 0 ? (
-                <button onClick={() => { copy(igs.join("\n"), `${igs.length} IG usernames copied!`); }}
-                  className="text-[10px] bg-pink-900/40 hover:bg-pink-800/50 text-pink-300 hover:text-pink-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
-                  <Copy className="h-2.5 w-2.5" /> All IGs ({igs.length})
-                </button>
-              ) : null; })()}
+              {(() => {
+                const igs = allItems.filter(i => profileData.get(i.uid)?.instagramUsername).map(i => profileData.get(i.uid)!.instagramUsername);
+                return igs.length > 0 ? (
+                  <button onClick={() => copy(igs.join("\n"), `${igs.length} IG usernames copied!`)}
+                    className="text-[10px] bg-pink-900/30 hover:bg-pink-800/40 text-pink-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                    <Copy className="h-2.5 w-2.5" /> IGs ({igs.length})
+                  </button>
+                ) : null;
+              })()}
             </div>
           </div>
         </div>
 
-        {/* Retry all failed banner */}
+        {/* Retry failed banner */}
         {failedUids.size > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-orange-900/20 border border-orange-700/30 rounded-xl">
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-orange-900/15 border border-orange-700/25 rounded-xl">
             <WifiOff className="h-3.5 w-3.5 text-orange-400 shrink-0" />
             <span className="text-[11px] text-orange-300 flex-1">{failedUids.size} profiles failed to load</span>
             <button onClick={retryAllFailed} disabled={retryingAll}
-              className="text-[10px] bg-orange-700/50 hover:bg-orange-600/60 text-orange-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60">
+              className="text-[10px] bg-orange-700/40 hover:bg-orange-600/50 text-orange-100 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60">
               {retryingAll ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <RotateCcw className="h-2.5 w-2.5" />}
-              Retry All
+              Retry
             </button>
           </div>
         )}
 
-        {/* Entry count row */}
-        <div className="flex items-center gap-2 px-0.5">
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 select-none cursor-pointer">
+        {/* List controls row */}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-slate-600 select-none cursor-pointer shrink-0">
             <input type="checkbox" checked={filteredItems.length > 0 && selected.size === filteredItems.length}
               onChange={toggleSelectAll} className="accent-cyan-500 h-3.5 w-3.5" />
             All
           </label>
-          <span className="text-xs text-slate-600 flex-1">{filteredItems.length} entries
-            {fetchingUids.size > 0 && <span className="ml-1.5 text-cyan-600/60 text-[10px]">({fetchingUids.size} loading…)</span>}
+          <span className="text-xs text-slate-600 flex-1">
+            {filteredItems.length} {filteredItems.length === 1 ? "entry" : "entries"}
           </span>
           {selected.size > 0 && <span className="text-xs text-cyan-400 font-bold">{selected.size} selected</span>}
           <button onClick={() => topRef.current?.scrollIntoView({ behavior: "smooth" })}
-            className="text-[10px] text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
-            <ArrowUpToLine className="h-3 w-3" /> Top
+            className="text-[10px] text-slate-600 hover:text-white flex items-center gap-1 transition-colors">
+            <ArrowUpToLine className="h-3 w-3" />
           </button>
           {allItems.length > 0 && (
             <button onClick={() => { if (confirm("Delete ALL data?")) clearAllMutation.mutate(); }}
-              className="text-[10px] text-red-500 hover:text-red-300 flex items-center gap-1 transition-colors">
+              className="text-[10px] text-red-600 hover:text-red-400 flex items-center gap-1 transition-colors">
               <Trash2 className="h-3 w-3" /> Wipe
             </button>
           )}
         </div>
 
-        {/* ID List */}
+        {/* ─── ID LIST ─────────────────────────────── */}
         <div className="flex flex-col gap-2 pb-32">
           {idsLoading ? (
-            <div className="flex flex-col items-center py-12 text-slate-600 gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />Loading...
+            <div className="flex flex-col items-center py-16 text-slate-600 gap-2">
+              <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />
+              <span className="text-xs">Loading…</span>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center py-16 text-slate-600 gap-3">
+            <div className="flex flex-col items-center py-20 gap-3">
               {searchQuery ? (
                 <>
-                  <Search className="h-10 w-10 opacity-20" />
-                  <p className="text-sm text-slate-500">No results found.</p>
+                  <Search className="h-10 w-10 text-slate-700" />
+                  <p className="text-sm text-slate-500">No results for "{searchQuery}"</p>
                   <button onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                    className="text-[11px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-4 py-1.5 rounded-full transition-colors">
-                    Clear all filters
+                    className="text-xs text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-4 py-1.5 rounded-full transition-colors">
+                    Clear search
                   </button>
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-12 w-12 opacity-15 text-cyan-400" />
-                  <p className="text-base font-semibold text-slate-400">No IDs yet</p>
-                  <p className="text-xs text-slate-600 text-center max-w-[200px]">Import Facebook IDs to get started. Auto-fetch profiles on import.</p>
+                  <Zap className="h-12 w-12 text-slate-700" />
+                  <p className="text-sm font-semibold text-slate-500">No IDs yet</p>
+                  <p className="text-xs text-slate-700 text-center">Tap Add to import Facebook UIDs.</p>
                   <button onClick={() => setShowImport(true)}
-                    className="mt-1 flex items-center gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-[#070b16] text-xs font-bold px-4 py-2 rounded-xl transition-colors">
-                    <Plus className="h-3.5 w-3.5" /> Import IDs
+                    className="mt-1 flex items-center gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-[#060c17] text-xs font-bold px-4 py-2 rounded-xl transition-colors">
+                    <Plus className="h-3.5 w-3.5" /> Add IDs
                   </button>
                 </>
               )}
             </div>
           ) : viewMode === "compact" ? (
-            /* Compact mode: 2-column dense grid */
-            <div className="grid grid-cols-2 gap-1.5">
+            /* ─── COMPACT VIEW ─── */
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {filteredItems.slice(0, visibleCount).map((item, idx) => (
                 <div key={item.id}
-                  className={`rounded-lg border p-2 transition-all duration-150 relative overflow-hidden
-                    ${item.pinned ? "fb-card-pinned border-green-500/30 bg-[#0b1a10]" : "fb-card border-[#1a2540] bg-[#0c1122]"}
-                    ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}
-                  onPointerDown={(e) => {
-                    if ((e.target as Element).closest("button,a,input")) return;
-                    touchStartX.current = e.clientX;
-                    touchStartY.current = e.clientY;
-                    longPressFired.current = false;
-                    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-                    longPressTimer.current = setTimeout(() => {
-                      longPressFired.current = true;
-                      toggleSelect(item.id);
-                      try { navigator.vibrate?.(40); } catch {}
-                    }, 500);
-                  }}
-                  onPointerMove={(e) => {
-                    const dx = Math.abs(e.clientX - touchStartX.current);
-                    const dy = Math.abs(e.clientY - (touchStartY.current ?? e.clientY));
-                    if (dx > 8 || dy > 8) { if (longPressTimer.current) clearTimeout(longPressTimer.current); }
-                  }}
-                  onPointerUp={(e) => {
-                    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-                    if (!longPressFired.current) {
-                      const dx = touchStartX.current - e.clientX;
-                      if (dx > 60) setSwipedId(swipedId === item.id ? null : item.id);
-                      else if (dx < -30) setSwipedId(null);
-                    }
-                  }}
-                  onPointerLeave={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}>
+                  className={`bg-[#0d1627] border rounded-xl p-2.5 relative flex flex-col gap-1.5 transition-colors
+                    ${selected.has(item.id) ? "border-cyan-500/50 bg-cyan-900/10" : "border-[#1e2d47] hover:border-slate-600"}`}>
+                  {/* Swipe overlay */}
                   {swipedId === item.id && (
-                    <div className="absolute inset-0 bg-slate-900/95 flex items-center justify-evenly z-10">
+                    <div className="absolute inset-0 bg-[#0d1627]/95 flex items-center justify-evenly z-10 rounded-xl">
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
                         className="flex flex-col items-center gap-0.5 text-green-300 active:scale-90">
                         <BookmarkCheck className="h-4 w-4" />
@@ -1630,63 +1471,84 @@ export default function Dashboard() {
                         <Trash2 className="h-4 w-4" />
                         <span className="text-[9px] font-bold">Delete</span>
                       </button>
-                      <button onClick={() => setSwipedId(null)} className="absolute top-1 right-1 text-slate-400">
+                      <button onClick={() => setSwipedId(null)} className="absolute top-1 right-1 text-slate-500">
                         <X className="h-3 w-3" />
                       </button>
                     </div>
                   )}
-                  <div className="flex items-center gap-1 mb-1">
+
+                  {/* Card header row */}
+                  <div className="flex items-center gap-1">
                     <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
                       className="accent-cyan-500 h-3 w-3 shrink-0" />
-                    <span className="text-[9px] text-slate-600">{idx + 1}</span>
-                    {item.pinned && <span className="text-[9px] text-green-400">💾</span>}
+                    <span className="text-[9px] text-slate-700 tabular-nums">{idx + 1}</span>
+                    {item.pinned && <span className="text-[8px] text-green-500 ml-auto">💾</span>}
                     {(() => {
                       const ls = item.loginStatus as LoginStatus | null | undefined;
                       if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
-                      const cfg = LOGIN_STATUS_CONFIG[ls];
-                      return <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0`} title={cfg.label} />;
+                      return <div className={`w-1.5 h-1.5 rounded-full ${LOGIN_STATUS_CONFIG[ls].dotClass} shrink-0 ml-auto`} title={LOGIN_STATUS_CONFIG[ls].label} />;
                     })()}
                   </div>
+
+                  {/* UID copy button */}
                   <button
                     onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")}
-                    className={`font-mono block truncate text-left w-full transition-colors active:opacity-60 ${fontClass(fontSize)}
-                      ${item.visited ? "line-through text-slate-500" : "text-slate-200"}`}>
+                    onTouchStart={(e) => {
+                      touchStartX.current = e.touches[0].clientX;
+                      touchStartY.current = e.touches[0].clientY;
+                      longPressFired.current = false;
+                      longPressTimer.current = setTimeout(() => { longPressFired.current = true; if (navigator.vibrate) navigator.vibrate(40); toggleSelect(item.id); }, 500);
+                    }}
+                    onTouchEnd={(e) => {
+                      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                      const dx = Math.abs(e.changedTouches[0].clientX - touchStartX.current);
+                      const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+                      if (!longPressFired.current && dx < 5 && dy < 5) {
+                        copy(formatText(item.uid, item.password, item.accessToken), "Copied!");
+                      }
+                    }}
+                    className={`font-mono block truncate text-left w-full active:opacity-60 transition-opacity ${fontClass(fontSize)}
+                      ${item.visited ? "line-through text-slate-600" : "text-slate-200"}`}>
                     {highlightText(item.uid, searchQuery)}
                   </button>
+
                   {item.password && (
-                    <div className="flex items-center gap-0.5 mt-0.5">
-                      <Key className="h-2 w-2 text-yellow-400 shrink-0" />
-                      <span className="text-[10px] font-mono text-yellow-400/70 truncate">{showPasswords ? item.password : "••••••"}</span>
+                    <div className="flex items-center gap-0.5">
+                      <Key className="h-2 w-2 text-yellow-500/70 shrink-0" />
+                      <span className="text-[9px] font-mono text-yellow-500/60 truncate">{showPasswords ? item.password : "••••••"}</span>
                     </div>
                   )}
-                  {timeAgo(item.createdAt) && (
-                    <div className="text-[8px] text-slate-700 mt-0.5">{timeAgo(item.createdAt)}</div>
-                  )}
-                  <div className="flex gap-1 mt-1.5 flex-wrap items-center">
+
+                  {/* Quick actions */}
+                  <div className="flex gap-1 mt-0.5 flex-wrap items-center">
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
                       onClick={() => incrementVisit(item.uid)}
-                      className="text-[9px] bg-blue-900/40 text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded">🔗</a>
+                      className="text-[9px] bg-blue-900/30 text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded-lg transition-colors">🔗</a>
                     {(visitCounts.get(item.uid) ?? 0) > 0 && (
-                      <span className="text-[8px] bg-violet-600/40 text-violet-300 px-1 py-0.5 rounded font-bold leading-none">
+                      <span className="text-[8px] bg-violet-700/30 text-violet-300 px-1 py-0.5 rounded font-bold">
                         {visitCounts.get(item.uid)}×
                       </span>
                     )}
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { visited: !item.visited } })}
-                      className={`text-[9px] px-1.5 py-0.5 rounded ${item.visited ? "bg-emerald-700/50 text-emerald-300" : "bg-slate-700/40 text-slate-400"}`}>
+                      className={`text-[9px] px-1.5 py-0.5 rounded-lg transition-colors ${item.visited ? "bg-emerald-700/40 text-emerald-300" : "bg-slate-700/30 text-slate-500 hover:text-slate-300"}`}>
                       {item.visited ? "✅" : "○"}
                     </button>
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } })}
-                      className={`text-[9px] px-1.5 py-0.5 rounded ${item.pinned ? "bg-green-700/50 text-green-300" : "bg-slate-700/40 text-slate-400"}`}>
+                      className={`text-[9px] px-1.5 py-0.5 rounded-lg transition-colors ${item.pinned ? "bg-green-700/40 text-green-300" : "bg-slate-700/30 text-slate-500 hover:text-slate-300"}`}>
                       💾
                     </button>
                     <button onClick={() => deleteWithUndo(item)}
-                      className="text-[9px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded">✕</button>
+                      className="text-[9px] bg-red-900/30 text-red-500 hover:text-red-300 px-1.5 py-0.5 rounded-lg transition-colors">✕</button>
                   </div>
+
+                  {timeAgo(item.createdAt) && (
+                    <div className="text-[8px] text-slate-700">{timeAgo(item.createdAt)}</div>
+                  )}
                 </div>
               ))}
             </div>
           ) : (
-            /* Full list mode */
+            /* ─── LIST VIEW ─── */
             filteredItems.slice(0, visibleCount).map((item, idx) => {
               const profile = profileData.get(item.uid);
               const visitCount = visitCounts.get(item.uid) ?? 0;
@@ -1699,539 +1561,192 @@ export default function Dashboard() {
                   toggleSelect(id);
                 }, 500);
               };
-              const cancelLongPress = () => {
-                if (longPressTimer.current) clearTimeout(longPressTimer.current);
-              };
+
               return (
                 <div key={item.id}
-                  className={`rounded-xl border transition-all duration-150 overflow-hidden relative
-                    ${item.pinned ? "fb-card-pinned border-green-500/30 bg-[#0b1a10]" : "fb-card border-[#1a2540] bg-[#0c1122]"}
-                    ${selected.has(item.id) ? "ring-1 ring-cyan-500/50" : ""}`}
-                  onPointerDown={(e) => {
-                    if ((e.target as Element).closest("button,a,input,textarea")) return;
-                    touchStartX.current = e.clientX;
-                    touchStartY.current = e.clientY;
+                  className={`bg-[#0d1627] border rounded-2xl overflow-hidden transition-colors relative
+                    ${selected.has(item.id) ? "border-cyan-500/40 bg-cyan-900/10" : "border-[#1e2d47]"}`}
+                  onTouchStart={(e) => {
+                    touchStartX.current = e.touches[0].clientX;
+                    touchStartY.current = e.touches[0].clientY;
                     startLongPress(item.id);
                   }}
-                  onPointerMove={(e) => {
-                    const dx = Math.abs(e.clientX - touchStartX.current);
-                    const dy = Math.abs(e.clientY - touchStartY.current);
-                    if (dx > 8 || dy > 8) cancelLongPress();
-                  }}
-                  onPointerUp={cancelLongPress}
-                  onPointerLeave={cancelLongPress}
-                  onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
                   onTouchEnd={(e) => {
-                    cancelLongPress();
-                    if (longPressFired.current) return;
-                    const dx = touchStartX.current - e.changedTouches[0].clientX;
-                    if (dx > 70) setSwipedId(swipedId === item.id ? null : item.id);
-                    else if (dx < -30) setSwipedId(null);
+                    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                    const dx = e.changedTouches[0].clientX - touchStartX.current;
+                    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+                    if (!longPressFired.current && dx < -50 && dy < 40) setSwipedId(item.id);
+                    if (!longPressFired.current && dx > 50 && dy < 40) setSwipedId(null);
                   }}>
 
-                  {/* Swipe overlay — expanded actions */}
-                  {swipedId === item.id && (() => {
-                    const igUser = profile?.instagramUsername;
-                    return (
-                      <div className="absolute inset-0 bg-slate-900/97 flex items-center justify-center z-10 gap-4 px-2">
-                        <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
-                          className={`flex flex-col items-center gap-1.5 active:scale-95 transition-transform ${item.pinned ? "text-green-300" : "text-green-400"}`}>
-                          <Save className="h-6 w-6" />
-                          <span className="text-[10px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
-                        </button>
-                        <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
-                          className={`flex flex-col items-center gap-1.5 active:scale-95 transition-transform ${item.visited ? "text-cyan-300" : "text-cyan-400"}`}>
-                          {item.visited ? <CheckSquare className="h-6 w-6" /> : <Square className="h-6 w-6" />}
-                          <span className="text-[10px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
-                        </button>
-                        <button onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")} className="flex flex-col items-center gap-1.5 text-sky-400 active:scale-95 transition-transform">
-                          <Copy className="h-6 w-6" />
-                          <span className="text-[10px] font-bold">Copy</span>
-                        </button>
-                        {igUser && (
-                          <a href={`https://instagram.com/${igUser}`} target="_blank" rel="noreferrer"
-                            onClick={() => setSwipedId(null)}
-                            className="flex flex-col items-center gap-1.5 text-pink-400 active:scale-95 transition-transform">
-                            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                            </svg>
-                            <span className="text-[10px] font-bold">Instagram</span>
-                          </a>
-                        )}
-                        <button onClick={() => deleteWithUndo(item)}
-                          className="flex flex-col items-center gap-1.5 text-red-400 active:scale-95 transition-transform">
-                          <Trash2 className="h-6 w-6" />
-                          <span className="text-[10px] font-bold">Delete</span>
-                        </button>
-                        <button onClick={() => setSwipedId(null)} className="absolute top-2 right-2 text-slate-500 hover:text-white">
-                          <X className="h-5 w-5" />
-                        </button>
-                      </div>
-                    );
-                  })()}
-
-
-                  {/* Profile loading skeleton */}
-                  {fetchingUids.has(item.uid) && !profile && (
-                    <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-700/20 animate-pulse bg-slate-900/30">
-                      <div className="w-8 h-8 rounded-full bg-slate-700/50 shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <div className="h-2.5 bg-slate-700/50 rounded-full w-28" />
-                        <div className="h-2 bg-slate-700/30 rounded-full w-20" />
-                      </div>
-                      <Loader2 className="h-3 w-3 text-cyan-600/50 animate-spin shrink-0" />
+                  {/* Swipe overlay */}
+                  {swipedId === item.id && (
+                    <div className="absolute inset-0 bg-[#0d1627]/97 flex items-center justify-evenly z-10">
+                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
+                        className="flex flex-col items-center gap-1 text-green-300 active:scale-90">
+                        <BookmarkCheck className="h-5 w-5" />
+                        <span className="text-[9px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
+                      </button>
+                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
+                        className="flex flex-col items-center gap-1 text-cyan-300 active:scale-90">
+                        <CheckCircle className="h-5 w-5" />
+                        <span className="text-[9px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
+                      </button>
+                      <button onClick={() => { deleteWithUndo(item); setSwipedId(null); }}
+                        className="flex flex-col items-center gap-1 text-red-300 active:scale-90">
+                        <Trash2 className="h-5 w-5" />
+                        <span className="text-[9px] font-bold">Delete</span>
+                      </button>
+                      <button onClick={() => setSwipedId(null)} className="absolute top-2 right-2 text-slate-500">
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
                   )}
 
-                  {/* Profile info bar (AnimatePresence) */}
-                  <AnimatePresence>
-                    {profile && (
-                      <motion.div
-                        key="profile-bar"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden">
-                        <div className="px-3 py-2 bg-gradient-to-r from-blue-900/20 to-indigo-900/10 border-b border-blue-500/20 text-[11px]">
-                          <div className="flex items-center gap-2">
-                            {/* Avatar with completeness ring */}
-                            <div className="relative shrink-0">
-                              <ProfileAvatar profile={profile} uid={item.uid} size={34} />
-                              {/* Completeness dots */}
-                              <div className="absolute -bottom-0.5 -right-0.5 flex gap-0.5">
-                                {[!!profile.name, !!profile.followerCount, !!profile.instagramUsername].map((has, i) => (
-                                  <div key={i} className={`w-1.5 h-1.5 rounded-full border border-[#070b16] ${has ? "bg-emerald-400" : "bg-slate-700"}`} />
-                                ))}
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              {/* Row 1: name + username */}
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {profile.name && (
-                                  <button onClick={() => copy(profile.name!, "Name copied!")}
-                                    className="text-blue-200 font-semibold truncate max-w-[150px] hover:text-white transition-colors text-left">
-                                    {profile.name}
-                                  </button>
-                                )}
-                                {profile.username && profile.username !== "profile.php" && (
-                                  <span className="text-cyan-400/70 text-[10px]">@{profile.username}</span>
-                                )}
-                                {profile.followerCount && (
-                                  <span className="text-emerald-400/80 flex items-center gap-0.5 text-[10px]">
-                                    <User className="h-2 w-2" />{profile.followerCount}
-                                  </span>
-                                )}
-                                {(() => { const t = followerTier(profile.followerCount ?? null); return t ? (
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none ${t.cls}`}>
-                                    {t.icon} {t.label}
-                                  </span>
-                                ) : null; })()}
-                                {profile.nationality && (
-                                  <span className="text-orange-300/60 text-[10px]">📍 {profile.nationality}</span>
-                                )}
-                              </div>
-                              {/* Row 2: IG + open buttons */}
-                              {profile.instagramUsername && (
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex items-center gap-0.5 text-pink-400 hover:text-pink-300 transition-colors font-medium text-[10px]">
-                                    <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                                    </svg>
-                                    @{profile.instagramUsername}
-                                  </a>
-                                  <button onClick={() => copy(profile.instagramUsername!, "IG username copied!")}
-                                    className="text-[9px] text-pink-600 hover:text-pink-400 transition-colors">
-                                    <Copy className="h-2 w-2" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            {/* Quick action buttons */}
-                            <div className="flex flex-col gap-1 shrink-0">
-                              <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                                onClick={() => incrementVisit(item.uid)}
-                                className="flex items-center gap-0.5 text-[9px] bg-blue-800/50 hover:bg-blue-700/60 text-blue-300 px-1.5 py-0.5 rounded transition-colors">
-                                <ExternalLink className="h-2.5 w-2.5" /> FB
-                              </a>
-                              {profile.instagramUsername && (
-                                <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="flex items-center gap-0.5 text-[9px] bg-pink-900/50 hover:bg-pink-800/60 text-pink-300 px-1.5 py-0.5 rounded transition-colors">
-                                  <ExternalLink className="h-2.5 w-2.5" /> IG
-                                </a>
-                              )}
-                              <button
-                                onClick={(e) => { e.stopPropagation(); retryProfile(item.uid); }}
-                                title="Re-fetch profile"
-                                className="flex items-center gap-0.5 text-[9px] bg-slate-800/50 hover:bg-slate-700/60 text-slate-400 hover:text-cyan-300 px-1.5 py-0.5 rounded transition-colors">
-                                <RefreshCw className="h-2.5 w-2.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                    {!profile && failedUids.has(item.uid) && (
-                      <motion.div
-                        key="retry-bar"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/30 border-b border-slate-700/30 text-[10px]">
-                          <span className="text-slate-600 flex-1">Profile unavailable</span>
-                          <button
-                            onClick={() => retryProfile(item.uid)}
-                            className="flex items-center gap-1 text-slate-400 hover:text-cyan-300 transition-colors">
-                            <RotateCcw className="h-2.5 w-2.5" /> Retry
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* UID row */}
-                  <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                  {/* Card top: checkbox + number + UID link + status + copy */}
+                  <div className="flex items-center gap-2 px-3 pt-3 pb-2">
                     <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
+                      onMouseDown={startLongPress.bind(null, item.id)}
                       className="accent-cyan-500 h-3.5 w-3.5 shrink-0" />
-                    <span className="text-[10px] text-slate-600 shrink-0 w-4 text-right">{idx + 1}</span>
-                    <span className="text-[10px] text-slate-500 shrink-0">UID:</span>
-                    {timeAgo(item.createdAt) && (
-                      <span className="text-[9px] text-slate-700 ml-auto shrink-0">{timeAgo(item.createdAt)}</span>
-                    )}
-                    <a
-                      href={`https://facebook.com/${item.uid}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => {
-                        incrementVisit(item.uid);
-                      }}
+                    <span className="text-[9px] text-slate-700 tabular-nums shrink-0">{idx + 1}</span>
+                    <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
+                      onClick={() => incrementVisit(item.uid)}
                       className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate transition-colors flex items-center gap-1
-                        ${item.visited ? "line-through text-slate-500" : "text-cyan-300 hover:text-cyan-100"}`}>
+                        ${item.visited ? "line-through text-slate-600" : "text-cyan-300 hover:text-cyan-100"}`}>
                       {highlightText(item.uid, searchQuery)}
-                      <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-50" />
+                      <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-30" />
                     </a>
-                    {visitCount > 0 && (
-                      <span className="shrink-0 text-[9px] bg-violet-600/40 text-violet-300 px-1 py-0.5 rounded font-bold leading-none">
-                        {visitCount}×
-                      </span>
-                    )}
-                    <button
-                      onClick={() => copy(item.uid, "UID copied!")}
-                      title="Copy UID"
-                      className="shrink-0 text-[10px] bg-slate-700/50 hover:bg-slate-600/60 text-slate-300 hover:text-white px-2 py-0.5 rounded flex items-center gap-0.5 active:scale-95 transition-all">
-                      <Copy className="h-2.5 w-2.5" />UID
+                    {(() => {
+                      const ls = item.loginStatus as LoginStatus | null | undefined;
+                      if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
+                      const cfg = LOGIN_STATUS_CONFIG[ls];
+                      return <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.badgeClass}`}>{cfg.label}</span>;
+                    })()}
+                    <button onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")}
+                      className="text-slate-600 hover:text-cyan-400 transition-colors shrink-0">
+                      <Copy className="h-3.5 w-3.5" />
                     </button>
+                    {item.pinned && <span className="text-[10px] text-green-500 shrink-0">💾</span>}
+                    {visitCount > 0 && <span className="text-[8px] bg-violet-700/30 text-violet-300 px-1 py-0.5 rounded font-bold shrink-0">{visitCount}×</span>}
                   </div>
 
-                  {/* Login status badge */}
-                  {(() => {
-                    const ls = item.loginStatus as LoginStatus | null | undefined;
-                    if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
-                    const cfg = LOGIN_STATUS_CONFIG[ls];
-                    const token = item.accessToken;
-                    return (
-                      <div className={`flex items-center gap-1.5 px-3 pb-1 text-[10px]`}>
-                        <div className="w-3.5 h-3.5 shrink-0" />
-                        <div className="w-4 shrink-0" />
-                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border ${cfg.bgClass} ${cfg.borderClass} flex-wrap`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass} shrink-0`} />
-                          <span className={`font-semibold ${cfg.color}`}>{cfg.label}</span>
-                          {token && (
-                            <button onClick={() => copy(token, "Token copied!")}
-                              className="text-[9px] bg-green-900/40 text-green-400 hover:bg-green-900/60 px-1.5 py-0.5 rounded ml-auto">
-                              Copy Token
-                            </button>
-                          )}
+                  {/* Password row */}
+                  {item.password && (
+                    <div className="flex items-center gap-1.5 px-3 pb-1.5">
+                      <Key className="h-2.5 w-2.5 text-yellow-500/60 shrink-0" />
+                      <span className="text-[10px] font-mono text-yellow-500/60 truncate flex-1">
+                        {showPasswords ? item.password : "••••••••"}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Profile info */}
+                  {profile && (
+                    <div className="flex items-center gap-2.5 px-3 py-2 border-t border-[#1e2d47]/50">
+                      <ProfileAvatar profile={profile} uid={item.uid} size={32} />
+                      <div className="flex-1 min-w-0">
+                        {profile.name && <div className="text-xs text-white font-semibold truncate">{profile.name}</div>}
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                          {profile.username && <span>@{profile.username}</span>}
+                          {profile.followerCount && <span className="text-cyan-500/70">· {profile.followerCount}</span>}
+                          {profile.nationality && <span>· {profile.nationality}</span>}
                         </div>
                       </div>
-                    );
-                  })()}
+                      <div className="flex flex-col gap-1 shrink-0">
+                        {profile.instagramUsername && (
+                          <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-0.5 text-[9px] bg-pink-900/30 hover:bg-pink-800/50 text-pink-300 px-1.5 py-0.5 rounded-lg transition-colors">
+                            <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                            IG
+                          </a>
+                        )}
+                        <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
+                          onClick={() => incrementVisit(item.uid)}
+                          className="flex items-center gap-0.5 text-[9px] bg-blue-900/30 hover:bg-blue-800/50 text-blue-300 px-1.5 py-0.5 rounded-lg transition-colors">
+                          <ExternalLink className="h-2.5 w-2.5" /> FB
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Pass row */}
-                  <div className="flex items-center gap-2 px-3 pb-1.5">
-                    <div className="w-3.5 h-3.5 shrink-0" />
-                    <div className="w-4 shrink-0" />
-                    <span className="text-[10px] text-slate-500 shrink-0">Pass:</span>
-                    {item.password ? (
-                      <>
-                        <span className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate text-yellow-400/90 transition-all duration-200 ${showPasswords ? "" : "blur-sm select-none"}`}>
-                          {item.password}
-                        </span>
-                        <button
-                          onClick={() => copy(item.password!, "Pass copied!")}
-                          title="Copy Password"
-                          className="shrink-0 text-[10px] bg-yellow-900/40 hover:bg-yellow-800/50 text-yellow-300 hover:text-yellow-100 px-2 py-0.5 rounded flex items-center gap-0.5 active:scale-95 transition-all">
-                          <Key className="h-2.5 w-2.5" />Pass
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-[10px] text-slate-600 italic flex-1">—</span>
-                    )}
-                  </div>
+                  {/* Loading skeleton */}
+                  {fetchingUids.has(item.uid) && !profile && (
+                    <div className="flex items-center gap-2 px-3 py-2 border-t border-[#1e2d47]/50 animate-pulse">
+                      <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-2.5 bg-slate-800 rounded-full w-3/4" />
+                        <div className="h-2 bg-slate-800/70 rounded-full w-1/2" />
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Note display (collapsed) */}
+                  {/* Failed retry */}
+                  {failedUids.has(item.uid) && !profile && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 border-t border-[#1e2d47]/50">
+                      <span className="text-[10px] text-slate-700 flex-1">No profile found</span>
+                      <button onClick={() => retryProfile(item.uid)} className="text-[9px] text-slate-600 hover:text-slate-400 transition-colors">
+                        <RotateCcw className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Note display */}
                   {item.note && editingNote !== item.id && (
-                    <div className="flex items-start gap-1.5 px-3 pb-1">
-                      <div className="w-3.5 h-3.5 shrink-0" />
-                      <div className="w-4 shrink-0" />
-                      <FileText className="h-2.5 w-2.5 text-blue-400 shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-blue-300/80 break-words leading-snug">{item.note}</p>
+                    <div className="px-3 pb-2 pt-0">
+                      <div className="text-[10px] text-slate-500 bg-slate-800/30 rounded-lg px-2.5 py-1.5 truncate">
+                        📝 {item.note}
+                      </div>
                     </div>
                   )}
 
                   {/* Note editor */}
                   {editingNote === item.id && (
-                    <div className="px-3 pb-2">
-                      <textarea
-                        autoFocus
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="Add a note..."
-                        rows={2}
-                        className="fb-note-input w-full bg-[#0a1020] border border-blue-500/40 text-blue-200 placeholder-slate-600 text-xs rounded-lg px-2 py-1.5 outline-none resize-none focus:border-blue-400/60"
-                      />
-                      <div className="flex gap-1.5 mt-1">
-                        <button onClick={() => saveNote(item.id)}
-                          className="text-[10px] bg-blue-600/60 hover:bg-blue-500/70 text-blue-100 px-2.5 py-1 rounded">Save</button>
-                        <button onClick={() => { setEditingNote(null); }}
-                          className="text-[10px] bg-slate-700/40 text-slate-400 hover:text-white px-2.5 py-1 rounded">Cancel</button>
-                        {item.note && (
-                          <button onClick={() => { setNoteText(""); saveNote(item.id); }}
-                            className="text-[10px] text-red-400 hover:text-red-300 px-1 py-1">Clear</button>
-                        )}
+                    <div className="px-3 pb-2 pt-1 flex gap-1.5">
+                      <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(item.id); } }}
+                        autoFocus placeholder="Add a note…" rows={2}
+                        className="flex-1 bg-[#060c17] border border-[#1e2d47] text-slate-300 text-[10px] px-2 py-1.5 rounded-lg outline-none focus:border-cyan-500/50 resize-none placeholder-slate-700" />
+                      <div className="flex flex-col gap-1">
+                        <button onClick={() => saveNote(item.id)} className="text-[10px] bg-cyan-500/20 text-cyan-400 hover:text-cyan-200 px-2 py-1 rounded-lg">Save</button>
+                        <button onClick={() => setEditingNote(null)} className="text-[10px] text-slate-600 hover:text-white px-2 py-1 rounded-lg">✕</button>
                       </div>
                     </div>
                   )}
 
                   {/* Action row */}
-                  <div className="flex gap-1 px-3 pb-3 pt-1 flex-wrap">
+                  <div className="flex border-t border-[#1e2d47]/50 divide-x divide-[#1e2d47]/50">
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } })}
-                      className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-0.5
-                        ${item.pinned ? "bg-green-700/60 hover:bg-green-600/70 text-green-100" : "bg-green-900/30 hover:bg-green-800/40 text-green-400"}`}>
+                      className={`flex-1 py-2 text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors
+                        ${item.pinned ? "text-green-400 bg-green-900/15" : "text-slate-500 hover:text-green-400"}`}>
                       💾 {item.pinned ? "Saved" : "Save"}
                     </button>
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { visited: !item.visited } })}
-                      className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-0.5
-                        ${item.visited ? "bg-emerald-700/60 hover:bg-emerald-600/70 text-emerald-100" : "bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-emerald-300"}`}>
+                      className={`flex-1 py-2 text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors
+                        ${item.visited ? "text-emerald-400 bg-emerald-900/15" : "text-slate-500 hover:text-emerald-400"}`}>
                       {item.visited ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
                       {item.visited ? "Done" : "Check"}
-                    </button>
-                    <button onClick={() => deleteWithUndo(item)}
-                      className="flex-1 text-[10px] font-semibold py-1.5 rounded-lg bg-red-900/30 hover:bg-red-800/50 text-red-400 hover:text-red-200 transition-colors flex items-center justify-center gap-0.5">
-                      <Trash2 className="h-3 w-3" />Del
                     </button>
                     <button onClick={() => {
                       if (editingNote === item.id) { setEditingNote(null); }
                       else { setEditingNote(item.id); setNoteText(item.note ?? ""); }
                     }}
-                      className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-0.5
-                        ${item.note ? "bg-blue-700/50 text-blue-200" : "bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-blue-300"}`}>
-                      <FileText className="h-3 w-3" />Note
+                      className={`flex-1 py-2 text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors
+                        ${item.note ? "text-blue-400 bg-blue-900/15" : "text-slate-500 hover:text-blue-400"}`}>
+                      <FileText className="h-3 w-3" /> Note
                     </button>
-                    {profile?.instagramUsername && (
-                      <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex-1 text-[10px] font-semibold py-1.5 rounded-lg bg-pink-900/40 hover:bg-pink-800/60 text-pink-300 hover:text-pink-100 transition-colors flex items-center justify-center gap-0.5">
-                        <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                        IG
-                      </a>
-                    )}
+                    <button onClick={() => deleteWithUndo(item)}
+                      className="flex-1 py-2 text-[10px] font-medium text-slate-500 hover:text-red-400 flex items-center justify-center transition-colors">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
                   </div>
                 </div>
               );
             })
           )}
-          {/* Infinite scroll sentinel */}
           <div ref={listBottomRef} className="h-4" />
-          {filteredItems.length > visibleCount && (
-            <div className="flex flex-col items-center gap-2 py-3">
-              <Loader2 className="h-4 w-4 animate-spin text-cyan-600" />
-              <button
-                onClick={() => setVisibleCount((v) => v + 50)}
-                className="text-[11px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-4 py-1.5 rounded-full transition-colors"
-              >
-                আরো দেখুন ({filteredItems.length - visibleCount} বাকি)
-              </button>
-            </div>
-          )}
         </div>
       </div>
-
-      {/* Magic Bottom Navigation */}
-      {(() => {
-        const navItems = [
-          { key: "home" as const, icon: <Shield className="h-5 w-5" />, label: "Home" },
-          { key: "search" as const, icon: <Search className="h-5 w-5" />, label: "Search" },
-          { key: "import" as const, icon: <Plus className="h-5 w-5" />, label: "Import" },
-          { key: "analytics" as const, icon: <BarChart2 className="h-5 w-5" />, label: "Charts" },
-          { key: "settings" as const, icon: <Settings className="h-5 w-5" />, label: "Config" },
-        ] as const;
-        const activeIdx = navItems.findIndex((n) => n.key === activeNav);
-        return (
-          <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-2 px-3 pointer-events-none">
-            <motion.div
-              initial={{ y: 80, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 30 }}
-              className="pointer-events-auto bg-[#0c1122]/95 backdrop-blur-md border border-[#1a2540] rounded-2xl px-2 py-1.5 flex items-center gap-0.5 relative shadow-2xl shadow-black/60"
-              style={{ maxWidth: 320, width: "100%" }}
-            >
-              {/* Animated pill indicator */}
-              <motion.div
-                className="absolute top-1.5 bottom-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30"
-                animate={{ left: `calc(${activeIdx} * 20% + 8px)`, width: "calc(20% - 4px)" }}
-                transition={{ type: "spring", stiffness: 400, damping: 35 }}
-              />
-              {navItems.map(({ key, icon, label }) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    setActiveNav(key);
-                    if (key === "home") {
-                      topRef.current?.scrollIntoView({ behavior: "smooth" });
-                    } else if (key === "search") {
-                      setShowSearch((v) => !v);
-                      setShowSort(false); setShowCopyFmt(false); setShowSettings(false);
-                    } else if (key === "import") {
-                      setShowImport(true);
-                    } else if (key === "analytics") {
-                      const next = !showCharts;
-                      setShowCharts(next);
-                      try { localStorage.setItem("fb_show_charts", String(next)); } catch {}
-                      setTimeout(() => analyticsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-                    } else if (key === "settings") {
-                      setShowSettings((v) => !v);
-                      setShowSort(false); setShowSearch(false); setShowCopyFmt(false);
-                    }
-                  }}
-                  className="relative z-10 flex-1 flex flex-col items-center gap-0.5 py-1.5"
-                >
-                  <motion.span
-                    animate={{ color: activeNav === key ? "#06b6d4" : "#64748b" }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {icon}
-                  </motion.span>
-                  <motion.span
-                    className="text-[9px] font-semibold"
-                    animate={{ color: activeNav === key ? "#06b6d4" : "#475569" }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {label}
-                  </motion.span>
-                </button>
-              ))}
-            </motion.div>
-          </div>
-        );
-      })()}
-
-      {/* Undo delete bar */}
-      {undoItem && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#1a2540] border border-cyan-500/40 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl shadow-black/60 max-w-xs w-[90vw]">
-          <Undo2 className="h-4 w-4 text-cyan-400 shrink-0" />
-          <span className="flex-1 text-xs text-slate-300 truncate">Deleted <span className="font-mono text-white">{undoItem.uid}</span></span>
-          <button onClick={handleUndo}
-            className="text-xs font-bold text-cyan-400 hover:text-cyan-200 transition-colors shrink-0 bg-cyan-500/20 px-2.5 py-1 rounded-lg">
-            Undo
-          </button>
-          <button onClick={() => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); setUndoItem(null); }}
-            className="text-slate-500 hover:text-white shrink-0">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Validator Overlay */}
-      {showValidator && (
-        <ValidatorPanel
-          onClose={() => setShowValidator(false)}
-          onImportLive={handleImportLive}
-          onImportDead={handleImportDead}
-          soundEnabled={soundEnabled}
-          onPlayChime={playChime}
-        />
-      )}
-
-      {/* Import Modal */}
-      {showImport && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm px-2 pb-2">
-          <div className="w-full max-w-lg bg-[#0c1122] border border-[#1a2540] rounded-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <Plus className="h-4 w-4 text-cyan-400" /> Import UIDs
-              </h3>
-              <button onClick={() => setShowImport(false)} className="text-slate-400 hover:text-white"><X className="h-5 w-5" /></button>
-            </div>
-            {/* Drag-drop zone */}
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault(); setDragOver(false);
-                const file = e.dataTransfer.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => setImportText(ev.target?.result as string ?? "");
-                reader.readAsText(file);
-              }}
-              className={`flex flex-col items-center justify-center gap-1.5 border-2 border-dashed rounded-xl py-3 transition-colors cursor-pointer text-center
-                ${dragOver ? "border-cyan-400 bg-cyan-500/10 text-cyan-300" : "border-[#1a2540] text-slate-600 hover:border-slate-500 hover:text-slate-400"}`}>
-              <Download className="h-5 w-5" />
-              <span className="text-xs font-medium">Drop a .txt file here</span>
-              <label className="text-[10px] underline cursor-pointer">
-                or browse
-                <input type="file" accept=".txt,.csv" className="hidden" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = (ev) => setImportText(ev.target?.result as string ?? "");
-                  reader.readAsText(file);
-                  e.target.value = "";
-                }} />
-              </label>
-            </div>
-            <div className="relative">
-              <Textarea autoFocus
-                className="min-h-[150px] font-mono text-sm bg-[#070b16] border-[#1a2540] text-slate-200 placeholder-slate-700 focus-visible:ring-cyan-500 resize-none"
-                placeholder={"Paste UIDs here. One per line.\nFormat:  uid   OR   uid|password"}
-                value={importText} onChange={(e) => setImportText(e.target.value)} />
-              <button
-                onClick={async () => {
-                  try {
-                    const text = await navigator.clipboard.readText();
-                    setImportText((prev) => prev ? prev + "\n" + text : text);
-                  } catch {}
-                }}
-                title="Paste from clipboard"
-                className="absolute top-2 right-2 text-[10px] bg-slate-700/80 hover:bg-slate-600/90 text-slate-300 hover:text-white px-2 py-1 rounded flex items-center gap-1 transition-colors">
-                <Clipboard className="h-3 w-3" /> Paste
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-600">
-                {importText.split("\n").filter((l) => l.trim()).length} lines · deduplicated on import
-              </span>
-              <div className="flex gap-2">
-                <button onClick={() => setShowImport(false)}
-                  className="text-sm px-4 py-2 rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 transition-colors">
-                  Cancel
-                </button>
-                <button onClick={() => importMutation.mutate({ data: { rawText: importText } })}
-                  disabled={!importText.trim() || importMutation.isPending}
-                  className="text-sm px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-[#070b16] font-bold transition-colors disabled:opacity-50 flex items-center gap-2">
-                  {importMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Import
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
