@@ -31,7 +31,6 @@ import {
 } from "recharts";
 
 type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved" | "alpha" | "recent" | "name" | "followers";
-type FilterMode = "all" | "checked" | "unchecked" | "saved" | "noted" | "tagged" | "hasig" | "hasname" | "dead" | "hasnote" | "live" | "checkpoint" | "twofactor";
 type CopyFormat = "both" | "uid" | "pass" | "named" | "token";
 type LoginStatus = "live" | "dead" | "checkpoint" | "2fa" | "locked" | "disabled" | "wrongpass";
 
@@ -383,20 +382,6 @@ function highlightText(text: string, query: string): ReactNode {
   );
 }
 
-const TAG_OPTIONS = [
-  { label: "VIP", color: "bg-yellow-500 text-black" },
-  { label: "Hot", color: "bg-red-500 text-white" },
-  { label: "New", color: "bg-blue-500 text-white" },
-  { label: "Done", color: "bg-green-500 text-white" },
-  { label: "Skip", color: "bg-slate-500 text-white" },
-];
-
-function tagColor(tag: string | null, customTags?: { label: string; color: string }[]): string {
-  const allTags = [...TAG_OPTIONS, ...(customTags ?? [])];
-  const found = allTags.find((t) => t.label === tag);
-  return found ? found.color : "bg-purple-600 text-white";
-}
-
 function fontClass(size: "sm" | "base" | "lg"): string {
   if (size === "base") return "text-base";
   if (size === "lg") return "text-lg";
@@ -450,13 +435,11 @@ export default function Dashboard() {
   const [showSearch, setShowSearch] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [showSort, setShowSort] = useState(false);
-  const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [copyFormat, setCopyFormat] = useState<CopyFormat>("both");
   const [showCopyFmt, setShowCopyFmt] = useState(false);
   const [editingNote, setEditingNote] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
-  const [showTagPicker, setShowTagPicker] = useState<number | null>(null);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showCharts, setShowCharts] = useState(() => {
     try { return localStorage.getItem("fb_show_charts") === "true"; } catch { return false; }
@@ -486,10 +469,6 @@ export default function Dashboard() {
     } catch { return new Map(); }
   });
   const [showValidator, setShowValidator] = useState(false);
-  const [customTags, setCustomTags] = useState<{ label: string; color: string }[]>(() => {
-    try { return JSON.parse(localStorage.getItem("fb_custom_tags") ?? "[]"); } catch { return []; }
-  });
-  const [newCustomTagInput, setNewCustomTagInput] = useState("");
   const [globalProxies, setGlobalProxies] = useState<string>(() => {
     try { return localStorage.getItem("fb_proxies") ?? ""; } catch { return ""; }
   });
@@ -509,8 +488,6 @@ export default function Dashboard() {
     return 0;
   });
   const [checkedToday, setCheckedToday] = useState(0);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [showBatchTagPicker, setShowBatchTagPicker] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [fetchingUids, setFetchingUids] = useState<Set<string>>(new Set());
   const [showPasswords, setShowPasswords] = useState(false);
@@ -674,7 +651,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setVisibleCount(50);
-  }, [filterMode, sortMode, searchQuery, tagFilter]);
+  }, [sortMode, searchQuery]);
 
   useEffect(() => {
     if (idsLoading) return;
@@ -713,8 +690,8 @@ export default function Dashboard() {
       if (e.key === "Escape") {
         setShowSearch(false); setShowSort(false); setShowCopyFmt(false);
         setShowSettings(false); setSwipedId(null);
-        setSelected(new Set()); setShowBatchTagPicker(false);
-        setEditingNote(null); setShowTagPicker(null);
+        setSelected(new Set());
+        setEditingNote(null);
       }
     };
     window.addEventListener("keydown", handler);
@@ -817,10 +794,6 @@ export default function Dashboard() {
   }, [showCharts, chartPeriod, idsData]);
 
   const allItems = idsData?.items ?? [];
-  const allTagsWithCustom = useMemo(
-    () => [...TAG_OPTIONS, { label: "Dead", color: "bg-red-700 text-white" }, ...customTags],
-    [customTags],
-  );
 
   function parseFollowerNum(s: string | null): number {
     if (!s) return -1;
@@ -842,23 +815,6 @@ export default function Dashboard() {
         (pd.get(i.uid)?.name ?? "").toLowerCase().includes(q) ||
         (pd.get(i.uid)?.instagramUsername ?? "").toLowerCase().includes(q),
       );
-    }
-    switch (filterMode) {
-      case "checked":     items = items.filter((i) => i.visited); break;
-      case "unchecked":   items = items.filter((i) => !i.visited); break;
-      case "saved":       items = items.filter((i) => i.pinned); break;
-      case "noted":       items = items.filter((i) => !!i.note); break;
-      case "hasnote":     items = items.filter((i) => !!i.note); break;
-      case "tagged":      items = items.filter((i) => !!i.tag); break;
-      case "hasig":       items = items.filter((i) => !!pd.get(i.uid)?.instagramUsername); break;
-      case "hasname":     items = items.filter((i) => !!pd.get(i.uid)?.name); break;
-      case "dead":        items = items.filter((i) => i.tag === "Dead"); break;
-      case "live":        items = items.filter((i) => i.loginStatus === "live"); break;
-      case "checkpoint":  items = items.filter((i) => i.loginStatus === "checkpoint"); break;
-      case "twofactor":   items = items.filter((i) => i.loginStatus === "2fa"); break;
-    }
-    if (tagFilter !== null) {
-      items = items.filter((i) => i.tag === tagFilter);
     }
     switch (sortMode) {
       case "oldest": items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); break;
@@ -886,7 +842,7 @@ export default function Dashboard() {
       ); break;
     }
     return items;
-  }, [allItems, searchQuery, sortMode, filterMode, tagFilter]);
+  }, [allItems, searchQuery, sortMode]);
 
   useEffect(() => {
     if (idsLoading) return;
@@ -1007,7 +963,6 @@ export default function Dashboard() {
 
   const setTag = (id: number, tag: string | null) => {
     updateMutation.mutate({ id, data: { tag } });
-    setShowTagPicker(null);
   };
 
   const handleCopyAll = () => {
@@ -1022,28 +977,6 @@ export default function Dashboard() {
   };
 
   if (authLoading || !isAuthenticated) return null;
-
-  const igCount = allItems.filter((i) => !!profileData.get(i.uid)?.instagramUsername).length;
-  const nameCount = allItems.filter((i) => !!profileData.get(i.uid)?.name).length;
-  const deadCount = allItems.filter((i) => i.tag === "Dead").length;
-  const liveLoginCount = allItems.filter((i) => i.loginStatus === "live").length;
-  const checkpointCount = allItems.filter((i) => i.loginStatus === "checkpoint").length;
-  const twofaCount = allItems.filter((i) => i.loginStatus === "2fa").length;
-
-  const filterTabs: { key: FilterMode; label: string; count: number }[] = [
-    { key: "all",       label: "All",  count: allItems.length },
-    { key: "checked",   label: "✅",   count: allItems.filter((i) => i.visited).length },
-    { key: "unchecked", label: "⏳",   count: allItems.filter((i) => !i.visited).length },
-    { key: "saved",     label: "💾",   count: allItems.filter((i) => i.pinned).length },
-    { key: "hasnote",   label: "📝",   count: allItems.filter((i) => !!i.note).length },
-    { key: "tagged",    label: "🏷️",  count: allItems.filter((i) => !!i.tag).length },
-    ...(igCount > 0          ? [{ key: "hasig"      as FilterMode, label: "📷 IG",         count: igCount }] : []),
-    ...(nameCount > 0        ? [{ key: "hasname"    as FilterMode, label: "👤 Name",        count: nameCount }] : []),
-    ...(deadCount > 0        ? [{ key: "dead"       as FilterMode, label: "💀 Dead",        count: deadCount }] : []),
-    ...(liveLoginCount > 0   ? [{ key: "live"       as FilterMode, label: "🔓 Live",        count: liveLoginCount }] : []),
-    ...(checkpointCount > 0  ? [{ key: "checkpoint" as FilterMode, label: "🔒 Checkpoint",  count: checkpointCount }] : []),
-    ...(twofaCount > 0       ? [{ key: "twofactor"  as FilterMode, label: "🔑 2FA",         count: twofaCount }] : []),
-  ];
 
   return (
     <div id="fb-root" ref={topRef} data-theme={theme} className="min-h-screen bg-[#070b16] text-white flex flex-col">
@@ -1246,73 +1179,6 @@ export default function Dashboard() {
               </button>
             </div>
           )}
-          {/* Manage Tags */}
-          <div className="border-t border-[#1a2540] pt-3 space-y-2">
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <Tag className="h-3 w-3" /> Manage Tags
-            </div>
-            {customTags.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                {customTags.map((t, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${t.color}`}>{t.label}</span>
-                    <input
-                      defaultValue={t.label}
-                      onBlur={(e) => {
-                        const newLabel = e.target.value.trim().slice(0, 20);
-                        if (!newLabel || newLabel === t.label) return;
-                        if (allTagsWithCustom.find((x, xi) => x.label === newLabel && xi !== i + TAG_OPTIONS.length + 1)) return;
-                        const next = customTags.map((ct, ci) => ci === i ? { ...ct, label: newLabel } : ct);
-                        setCustomTags(next);
-                        try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
-                      }}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                      className="flex-1 min-w-0 bg-[#070b16] border border-[#1a2540] text-slate-300 text-[10px] px-2 py-0.5 rounded outline-none focus:border-cyan-500/50"
-                    />
-                    <button onClick={() => {
-                      const next = customTags.filter((_, idx) => idx !== i);
-                      setCustomTags(next);
-                      try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
-                    }} className="text-red-500 hover:text-red-300 text-[10px] px-1.5 shrink-0">✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex gap-1.5">
-              <input
-                value={newCustomTagInput}
-                onChange={(e) => setNewCustomTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newCustomTagInput.trim()) {
-                    const label = newCustomTagInput.trim().slice(0, 20);
-                    if (!allTagsWithCustom.find((t) => t.label === label)) {
-                      const next = [...customTags, { label, color: "bg-purple-600 text-white" }];
-                      setCustomTags(next);
-                      try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
-                    }
-                    setNewCustomTagInput("");
-                  }
-                }}
-                placeholder="New tag name…"
-                className="flex-1 bg-[#070b16] border border-[#1a2540] text-white text-[11px] px-2 py-1 rounded-lg outline-none focus:border-cyan-500/50 placeholder-slate-700"
-              />
-              <button
-                onClick={() => {
-                  const label = newCustomTagInput.trim().slice(0, 20);
-                  if (label && !allTagsWithCustom.find((t) => t.label === label)) {
-                    const next = [...customTags, { label, color: "bg-purple-600 text-white" }];
-                    setCustomTags(next);
-                    try { localStorage.setItem("fb_custom_tags", JSON.stringify(next)); } catch {}
-                  }
-                  setNewCustomTagInput("");
-                }}
-                disabled={!newCustomTagInput.trim()}
-                className="text-[10px] px-2.5 py-1 bg-cyan-500 hover:bg-cyan-400 text-[#070b16] font-bold rounded-lg disabled:opacity-40 transition-colors">
-                Add
-              </button>
-            </div>
-            <div className="text-[9px] text-slate-600">Press Enter or click Add. Tags appear in all pickers.</div>
-          </div>
         </div>
       )}
 
@@ -1328,36 +1194,12 @@ export default function Dashboard() {
               <button onClick={() => bulkCheck(true)} className="text-[10px] bg-emerald-700/40 hover:bg-emerald-600/50 text-emerald-300 px-2 py-1 rounded">✅ Check</button>
               <button onClick={() => bulkCheck(false)} className="text-[10px] bg-slate-700/40 hover:bg-slate-600/50 text-slate-300 px-2 py-1 rounded">⬜ Uncheck</button>
               <button onClick={() => bulkSave(true)} className="text-[10px] bg-green-700/40 hover:bg-green-600/50 text-green-300 px-2 py-1 rounded">💾 Save</button>
-              <button
-                onClick={() => setShowBatchTagPicker((v) => !v)}
-                className={`text-[10px] px-2 py-1 rounded flex items-center gap-1 transition-colors
-                  ${showBatchTagPicker ? "bg-orange-600/60 text-orange-100" : "bg-orange-700/40 hover:bg-orange-600/50 text-orange-300"}`}>
-                <Tag className="h-2.5 w-2.5" /> Tag
-              </button>
               <button onClick={bulkDelete} className="text-[10px] bg-red-700/40 hover:bg-red-600/50 text-red-300 px-2 py-1 rounded flex items-center gap-1">
                 <Trash2 className="h-2.5 w-2.5" /> Delete
               </button>
             </div>
-            <button onClick={() => { setSelected(new Set()); setShowBatchTagPicker(false); }} className="text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
+            <button onClick={() => setSelected(new Set())} className="text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
           </div>
-          {showBatchTagPicker && (
-            <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-[#1a2540]">
-              {allTagsWithCustom.map(({ label, color }) => (
-                <button key={label} onClick={() => {
-                  selectedItems.forEach((i) => updateMutation.mutate({ id: i.id, data: { tag: label } }));
-                  setShowBatchTagPicker(false); setSelected(new Set());
-                }} className={`text-[10px] font-bold px-3 py-1 rounded-full ${color}`}>
-                  {label}
-                </button>
-              ))}
-              <button onClick={() => {
-                selectedItems.forEach((i) => updateMutation.mutate({ id: i.id, data: { tag: null } }));
-                setShowBatchTagPicker(false); setSelected(new Set());
-              }} className="text-[10px] bg-slate-700/60 text-slate-300 px-3 py-1 rounded-full">
-                Clear Tag
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -1387,23 +1229,6 @@ export default function Dashboard() {
             {profileData.size > 0 && (
               <span className="text-[9px] bg-purple-900/30 border border-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">
                 👤 {profileData.size} profiles
-              </span>
-            )}
-            {igCount > 0 && (
-              <button onClick={() => { setFilterMode("hasig"); setTagFilter(null); }}
-                className="text-[9px] bg-pink-900/30 border border-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full hover:bg-pink-900/50 transition-colors">
-                📷 {igCount} with IG
-              </button>
-            )}
-            {deadCount > 0 && (
-              <button onClick={() => { setFilterMode("dead"); setTagFilter(null); }}
-                className="text-[9px] bg-red-900/30 border border-red-500/20 text-red-300 px-2 py-0.5 rounded-full hover:bg-red-900/50 transition-colors">
-                💀 {deadCount} dead
-              </button>
-            )}
-            {tagFilter !== null && (
-              <span className="text-[9px] bg-amber-900/30 border border-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">
-                🏷️ Filter: {tagFilter}
               </span>
             )}
           </div>
@@ -1438,7 +1263,7 @@ export default function Dashboard() {
 
         {/* Analytics toggle */}
         <button
-          ref={analyticsRef as React.RefObject<HTMLButtonElement>}
+          ref={analyticsRef as unknown as React.RefObject<HTMLButtonElement>}
           onClick={() => {
             const next = !showCharts;
             setShowCharts(next);
@@ -1689,50 +1514,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-          {filterTabs.map(({ key, label, count }) => (
-            <button key={key} onClick={() => { setFilterMode(key); setTagFilter(null); }}
-              className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-colors whitespace-nowrap flex items-center gap-1
-                ${filterMode === key && tagFilter === null ? "bg-cyan-500 border-cyan-500 text-[#070b16] font-bold" : "border-[#1a2540] text-slate-400 hover:text-white hover:border-slate-500"}`}>
-              {label}
-              <span className={`text-[10px] font-bold px-1 rounded-full min-w-[16px] text-center
-                ${filterMode === key && tagFilter === null ? "bg-[#070b16]/30 text-[#070b16]" : "bg-[#1a2540] text-slate-300"}`}>
-                {count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tag quick-filter chips */}
-        {(() => {
-          const allTagCounts = allTagsWithCustom
-            .map(({ label, color }) => ({ label, color, cnt: allItems.filter((i) => i.tag === label).length }))
-            .filter(({ cnt }) => cnt > 0);
-          if (allTagCounts.length === 0) return null;
-          return (
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-              <span className="shrink-0 text-[9px] text-slate-600 uppercase tracking-wider self-center pr-1">Tags:</span>
-              {tagFilter !== null && (
-                <button onClick={() => setTagFilter(null)}
-                  className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-slate-500/40 text-slate-400 hover:text-white whitespace-nowrap">
-                  ✕ All
-                </button>
-              )}
-              {allTagCounts.map(({ label, color, cnt }) => (
-                <button key={label} onClick={() => { setTagFilter(tagFilter === label ? null : label); setFilterMode("all"); }}
-                  className={`shrink-0 text-[10px] px-2.5 py-0.5 rounded-full border transition-all whitespace-nowrap flex items-center gap-1 font-bold
-                    ${tagFilter === label
-                      ? `${color} border-transparent ring-2 ring-white/30`
-                      : "border-[#1a2540] text-slate-400 hover:text-white"}`}>
-                  {label}
-                  <span className="text-[9px] opacity-80">{cnt}</span>
-                </button>
-              ))}
-            </div>
-          );
-        })()}
-
         {/* Retry all failed banner */}
         {failedUids.size > 0 && (
           <div className="flex items-center gap-2 px-3 py-2 bg-orange-900/20 border border-orange-700/30 rounded-xl">
@@ -1745,21 +1526,6 @@ export default function Dashboard() {
             </button>
           </div>
         )}
-
-        {/* Copy all IGs banner (when IG filter active) */}
-        {filterMode === "hasig" && (() => {
-          const igs = filteredItems.map(i => profileData.get(i.uid)?.instagramUsername).filter(Boolean) as string[];
-          return igs.length > 0 ? (
-            <div className="flex items-center gap-2 px-3 py-2 bg-pink-900/20 border border-pink-700/30 rounded-xl">
-              <svg className="h-3.5 w-3.5 text-pink-400 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-              <span className="text-[11px] text-pink-300 flex-1">{igs.length} Instagram usernames</span>
-              <button onClick={() => copy(igs.join("\n"), `${igs.length} IG usernames copied!`)}
-                className="text-[10px] bg-pink-700/50 hover:bg-pink-600/60 text-pink-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
-                <Copy className="h-2.5 w-2.5" /> Copy All IGs
-              </button>
-            </div>
-          ) : null;
-        })()}
 
         {/* Entry count row */}
         <div className="flex items-center gap-2 px-0.5">
@@ -1792,11 +1558,11 @@ export default function Dashboard() {
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-slate-600 gap-3">
-              {searchQuery || filterMode !== "all" || tagFilter ? (
+              {searchQuery ? (
                 <>
                   <Search className="h-10 w-10 opacity-20" />
                   <p className="text-sm text-slate-500">No results found.</p>
-                  <button onClick={() => { setFilterMode("all"); setTagFilter(null); setSearchQuery(""); setShowSearch(false); }}
+                  <button onClick={() => { setSearchQuery(""); setShowSearch(false); }}
                     className="text-[11px] text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 px-4 py-1.5 rounded-full transition-colors">
                     Clear all filters
                   </button>
@@ -1873,7 +1639,6 @@ export default function Dashboard() {
                     <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
                       className="accent-cyan-500 h-3 w-3 shrink-0" />
                     <span className="text-[9px] text-slate-600">{idx + 1}</span>
-                    {item.tag && <span className={`text-[8px] font-bold px-1 rounded ${tagColor(item.tag)}`}>{item.tag}</span>}
                     {item.pinned && <span className="text-[9px] text-green-400">💾</span>}
                     {(() => {
                       const ls = item.loginStatus as LoginStatus | null | undefined;
@@ -2005,12 +1770,6 @@ export default function Dashboard() {
                     );
                   })()}
 
-                  {/* Tag bar */}
-                  {item.tag && (
-                    <div className={`px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider ${tagColor(item.tag)}`}>
-                      🏷️ {item.tag}
-                    </div>
-                  )}
 
                   {/* Profile loading skeleton */}
                   {fetchingUids.has(item.uid) && !profile && (
@@ -2250,25 +2009,6 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {/* Tag picker */}
-                  {showTagPicker === item.id && (
-                    <div className="px-3 pb-2 flex flex-wrap gap-1.5">
-                      {allTagsWithCustom.map((t) => (
-                        <button key={t.label} onClick={() => setTag(item.id, item.tag === t.label ? null : t.label)}
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full transition-all
-                            ${item.tag === t.label ? "ring-2 ring-white/60 scale-105" : "opacity-80 hover:opacity-100"} ${t.color}`}>
-                          {t.label}
-                        </button>
-                      ))}
-                      {item.tag && (
-                        <button onClick={() => setTag(item.id, null)}
-                          className="text-[10px] bg-slate-700/50 text-slate-400 hover:text-white px-2.5 py-1 rounded-full">
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  )}
-
                   {/* Action row */}
                   <div className="flex gap-1 px-3 pb-3 pt-1 flex-wrap">
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } })}
@@ -2288,19 +2028,11 @@ export default function Dashboard() {
                     </button>
                     <button onClick={() => {
                       if (editingNote === item.id) { setEditingNote(null); }
-                      else { setEditingNote(item.id); setNoteText(item.note ?? ""); setShowTagPicker(null); }
+                      else { setEditingNote(item.id); setNoteText(item.note ?? ""); }
                     }}
                       className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-0.5
                         ${item.note ? "bg-blue-700/50 text-blue-200" : "bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-blue-300"}`}>
                       <FileText className="h-3 w-3" />Note
-                    </button>
-                    <button onClick={() => {
-                      setShowTagPicker(showTagPicker === item.id ? null : item.id);
-                      setEditingNote(null);
-                    }}
-                      className={`flex-1 text-[10px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-0.5
-                        ${item.tag ? "bg-orange-700/50 text-orange-200" : "bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-orange-300"}`}>
-                      <Tag className="h-3 w-3" />Tag
                     </button>
                     {profile?.instagramUsername && (
                       <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
