@@ -1664,7 +1664,7 @@ export default function Dashboard() {
                   )}
                   <div className="flex gap-1 mt-1.5 flex-wrap items-center">
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                      onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                      onClick={() => incrementVisit(item.uid)}
                       className="text-[9px] bg-blue-900/40 text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded">🔗</a>
                     {(visitCounts.get(item.uid) ?? 0) > 0 && (
                       <span className="text-[8px] bg-violet-600/40 text-violet-300 px-1 py-0.5 rounded font-bold leading-none">
@@ -1852,7 +1852,7 @@ export default function Dashboard() {
                             {/* Quick action buttons */}
                             <div className="flex flex-col gap-1 shrink-0">
                               <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                                onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                                onClick={() => incrementVisit(item.uid)}
                                 className="flex items-center gap-0.5 text-[9px] bg-blue-800/50 hover:bg-blue-700/60 text-blue-300 px-1.5 py-0.5 rounded transition-colors">
                                 <ExternalLink className="h-2.5 w-2.5" /> FB
                               </a>
@@ -1909,7 +1909,6 @@ export default function Dashboard() {
                       rel="noreferrer"
                       onClick={() => {
                         incrementVisit(item.uid);
-                        if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } });
                       }}
                       className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate transition-colors flex items-center gap-1
                         ${item.visited ? "line-through text-slate-500" : "text-cyan-300 hover:text-cyan-100"}`}>
