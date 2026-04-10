@@ -927,7 +927,7 @@ export default function Dashboard() {
       )}
 
       {/* ─── HEADER ─────────────────────────────────── */}
-      <header className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2 sticky top-0 z-30">
+      <header className="fb-header bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2 sticky top-0 z-30">
         <Zap className="h-4 w-4 text-cyan-400 shrink-0" />
         <span className="font-bold text-sm text-white flex-1">FB UIDs</span>
 
@@ -981,7 +981,7 @@ export default function Dashboard() {
 
       {/* Search bar */}
       {showSearch && (
-        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2">
+        <div className="fb-panel bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2">
           <Search className="h-4 w-4 text-slate-500 shrink-0" />
           <input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search UIDs, names, notes…"
@@ -994,7 +994,7 @@ export default function Dashboard() {
 
       {/* Sort panel */}
       {showSort && (
-        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-3 flex flex-wrap gap-1.5">
+        <div className="fb-panel bg-[#0a1422] border-b border-[#1e2d47] px-4 py-3 flex flex-wrap gap-1.5">
           {([
             { key: "newest",    label: "🆕 Newest" },
             { key: "oldest",    label: "📅 Oldest" },
@@ -1017,7 +1017,7 @@ export default function Dashboard() {
 
       {/* Copy format panel */}
       {showCopyFmt && (
-        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2 flex-wrap">
+        <div className="fb-panel bg-[#0a1422] border-b border-[#1e2d47] px-4 py-2.5 flex items-center gap-2 flex-wrap">
           <span className="text-[10px] text-slate-600 uppercase tracking-wider mr-1">Copy as:</span>
           {([
             { key: "both",  label: "UID|Pass" },
@@ -1037,7 +1037,7 @@ export default function Dashboard() {
 
       {/* Settings panel */}
       {showSettings && (
-        <div className="bg-[#0a1422] border-b border-[#1e2d47] px-4 py-3 space-y-3">
+        <div className="fb-panel bg-[#0a1422] border-b border-[#1e2d47] px-4 py-3 space-y-3">
           {/* Font size */}
           <div className="flex items-center gap-3">
             <Type className="h-3.5 w-3.5 text-slate-600 shrink-0" />
@@ -1136,7 +1136,7 @@ export default function Dashboard() {
 
       {/* Bulk actions bar */}
       {selected.size > 0 && (
-        <div className="bg-[#0d1a2e] border-b border-cyan-500/25 px-4 py-2.5 sticky top-[45px] z-20">
+        <div className="fb-bulk-bar bg-[#0d1a2e] border-b border-cyan-500/25 px-4 py-2.5 sticky top-[45px] z-20">
           <div className="flex items-center gap-2">
             <span className="text-xs text-cyan-400 font-bold shrink-0">{selected.size} selected</span>
             <div className="flex-1 flex flex-wrap gap-1.5">

@@ -69,14 +69,11 @@
 :root {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
+  --opaque-button-border-intensity: 9;
 
-  --opaque-button-border-intensity: 9;  /* In terms of percentages */
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* Slate/Navy palette */
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
 
@@ -88,7 +85,6 @@
   --popover-foreground: 210 40% 98%;
   --popover-border: 217.2 32.6% 17.5%;
 
-  /* Cyan primary accent */
   --primary: 191.6 91.4% 36.5%;
   --primary-foreground: 210 40% 98%;
 
@@ -128,7 +124,6 @@
   --app-font-mono: Menlo, monospace;
   --radius: 0.5rem;
 
-  /* Using light mode variables for fallback although we force dark */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00);
   --shadow-sm: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0.00), 0px 1px 2px -1px hsl(202.8169 89.1213% 53.1373% / 0.00);
@@ -156,74 +151,69 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-.dark {
-  /* same dark variables, forced application */
-}
+.dark {}
 
-/* ── FB Manager Light Theme ── */
-/* Applied via document.documentElement.setAttribute("data-fb-theme", "light") */
-/* Semantic helper classes added to key elements for reliable theme targeting    */
+/* ══════════════════════════════════════════════
+   FB Manager — Light Theme
+   Activated via: data-fb-theme="light" on <html>
+   ══════════════════════════════════════════════ */
 
+/* Root background */
 :root[data-fb-theme="light"] #fb-root {
-  background-color: #f0f4f8 !important;
+  background-color: #eef2f7 !important;
   color: #0f172a !important;
 }
-:root[data-fb-theme="light"] .fb-header {
-  background-color: #ffffff !important;
-  border-color: #d1d9e6 !important;
-}
-:root[data-fb-theme="light"] .fb-panel {
-  background-color: #ffffff !important;
-  border-color: #d1d9e6 !important;
-}
-:root[data-fb-theme="light"] .fb-card {
-  background-color: #ffffff !important;
-  border-color: #d1d9e6 !important;
-}
-:root[data-fb-theme="light"] .fb-card-pinned {
-  background-color: #f0fdf4 !important;
-  border-color: #bbf7d0 !important;
-}
-:root[data-fb-theme="light"] .fb-bulk-bar {
-  background-color: #dde4f0 !important;
-  border-color: #a5b4fc !important;
-}
-:root[data-fb-theme="light"] .fb-note-input {
-  background-color: #f8fafc !important;
-  border-color: #d1d9e6 !important;
-  color: #1e293b !important;
-}
-:root[data-fb-theme="light"] .fb-btn {
-  background-color: #e2e8f0 !important;
-  color: #475569 !important;
-}
-:root[data-fb-theme="light"] .fb-divider { border-color: #d1d9e6 !important; }
 
-/* ── Light theme: Tailwind text/bg class overrides ── */
-:root[data-fb-theme="light"] .text-white  { color: #0f172a !important; }
-:root[data-fb-theme="light"] .text-slate-100 { color: #1e293b !important; }
-:root[data-fb-theme="light"] .text-slate-200 { color: #334155 !important; }
-:root[data-fb-theme="light"] .text-slate-300 { color: #475569 !important; }
-:root[data-fb-theme="light"] .text-slate-400 { color: #64748b !important; }
-:root[data-fb-theme="light"] .text-slate-500 { color: #64748b !important; }
-:root[data-fb-theme="light"] .text-slate-600 { color: #94a3b8 !important; }
+/* ── New colour palette overrides (dark → light) ── */
+
+/* Main bg */
+:root[data-fb-theme="light"] .bg-\[#060c17\] { background-color: #eef2f7 !important; }
+
+/* Header */
+:root[data-fb-theme="light"] .bg-\[#0a1422\] { background-color: #ffffff !important; }
+:root[data-fb-theme="light"] .border-\[#1e2d47\] { border-color: #d0dae8 !important; }
+:root[data-fb-theme="light"] .divide-\[#1e2d47\] > * + * { border-color: #d0dae8 !important; }
+
+/* Cards / panels */
+:root[data-fb-theme="light"] .bg-\[#0d1627\] { background-color: #ffffff !important; }
+:root[data-fb-theme="light"] .bg-\[#0d1a2e\] { background-color: #dce5f0 !important; }
+:root[data-fb-theme="light"] .bg-\[#1e2d47\] { background-color: #dce5f0 !important; }
+:root[data-fb-theme="light"] .bg-\[#243050\] { background-color: #ccd7e8 !important; }
+
+/* Validator / import fullscreen */
+:root[data-fb-theme="light"] .bg-\[#060c17\] { background-color: #f5f7fb !important; }
+
+/* ── Text colour overrides ── */
+:root[data-fb-theme="light"] .text-white      { color: #0f172a !important; }
+:root[data-fb-theme="light"] .text-slate-100  { color: #1e293b !important; }
+:root[data-fb-theme="light"] .text-slate-200  { color: #334155 !important; }
+:root[data-fb-theme="light"] .text-slate-300  { color: #475569 !important; }
+:root[data-fb-theme="light"] .text-slate-400  { color: #64748b !important; }
+:root[data-fb-theme="light"] .text-slate-500  { color: #64748b !important; }
+:root[data-fb-theme="light"] .text-slate-600  { color: #94a3b8 !important; }
+:root[data-fb-theme="light"] .text-slate-700  { color: #b0bec5 !important; }
 :root[data-fb-theme="light"] .placeholder-slate-600::placeholder { color: #94a3b8 !important; }
-:root[data-fb-theme="light"] .bg-slate-700\/40 { background-color: #e2e8f0 !important; }
-:root[data-fb-theme="light"] .bg-slate-700\/50 { background-color: #e2e8f0 !important; }
-:root[data-fb-theme="light"] .bg-slate-800\/60 { background-color: #e2e8f0 !important; }
-:root[data-fb-theme="light"] .bg-slate-900\/95 { background-color: rgba(255,255,255,0.97) !important; }
-:root[data-fb-theme="light"] .bg-slate-900\/80 { background-color: rgba(241,245,249,0.97) !important; }
+:root[data-fb-theme="light"] .placeholder-slate-700::placeholder { color: #b0bec5 !important; }
 
-/* ── Light theme: background overrides for hardcoded hex classes ── */
-:root[data-fb-theme="light"] .bg-\[#070b16\] { background-color: #f0f4f8 !important; }
-:root[data-fb-theme="light"] .bg-\[#0c1122\] { background-color: #ffffff !important; }
-:root[data-fb-theme="light"] .bg-\[#0d1a2e\] { background-color: #dde4f0 !important; }
-:root[data-fb-theme="light"] .bg-\[#0b1a10\] { background-color: #f0fdf4 !important; }
-:root[data-fb-theme="light"] .bg-\[#0a1020\] { background-color: #f8fafc !important; }
-:root[data-fb-theme="light"] .bg-\[#1a2540\] { background-color: #e2e8f0 !important; }
-:root[data-fb-theme="light"] .bg-\[#243050\] { background-color: #d1d9e6 !important; }
-:root[data-fb-theme="light"] .border-\[#1a2540\] { border-color: #d1d9e6 !important; }
-:root[data-fb-theme="light"] .divide-\[#1a2540\] > * + * { border-color: #d1d9e6 !important; }
+/* Inputs */
+:root[data-fb-theme="light"] input[class],
+:root[data-fb-theme="light"] textarea[class] {
+  background-color: #f5f7fb !important;
+  color: #1e293b !important;
+  border-color: #d0dae8 !important;
+}
+
+/* Swipe overlay */
+:root[data-fb-theme="light"] .bg-\[#0d1627\]\/95 { background-color: rgba(255,255,255,0.97) !important; }
+:root[data-fb-theme="light"] .bg-\[#0d1627\]\/97 { background-color: rgba(255,255,255,0.98) !important; }
+
+/* Semantic helpers kept for reference */
+:root[data-fb-theme="light"] .fb-header      { background-color: #ffffff !important; border-color: #d0dae8 !important; }
+:root[data-fb-theme="light"] .fb-panel       { background-color: #ffffff !important; border-color: #d0dae8 !important; }
+:root[data-fb-theme="light"] .fb-card        { background-color: #ffffff !important; border-color: #d0dae8 !important; }
+:root[data-fb-theme="light"] .fb-card-pinned { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+:root[data-fb-theme="light"] .fb-bulk-bar    { background-color: #dce5f0 !important; border-color: #a5b4fc !important; }
+:root[data-fb-theme="light"] .fb-divider     { border-color: #d0dae8 !important; }
 
 @layer base {
   * {
