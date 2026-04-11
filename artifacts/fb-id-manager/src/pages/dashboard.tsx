@@ -1522,7 +1522,7 @@ export default function Dashboard() {
                   {/* Quick actions */}
                   <div className="flex gap-1 mt-0.5 flex-wrap items-center">
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                      onClick={() => incrementVisit(item.uid)}
+                      onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
                       className="text-[9px] bg-blue-900/30 text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded-lg transition-colors">🔗</a>
                     {(visitCounts.get(item.uid) ?? 0) > 0 && (
                       <span className="text-[8px] bg-violet-700/30 text-violet-300 px-1 py-0.5 rounded font-bold">
@@ -1610,7 +1610,7 @@ export default function Dashboard() {
                       className="accent-cyan-500 h-3.5 w-3.5 shrink-0" />
                     <span className="text-[9px] text-slate-700 tabular-nums shrink-0">{idx + 1}</span>
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                      onClick={() => incrementVisit(item.uid)}
+                      onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
                       className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate transition-colors flex items-center gap-1
                         ${item.visited ? "line-through text-slate-600" : "text-cyan-300 hover:text-cyan-100"}`}>
                       {highlightText(item.uid, searchQuery)}
@@ -1662,7 +1662,7 @@ export default function Dashboard() {
                           </a>
                         )}
                         <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                          onClick={() => incrementVisit(item.uid)}
+                          onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
                           className="flex items-center gap-0.5 text-[9px] bg-blue-900/30 hover:bg-blue-800/50 text-blue-300 px-1.5 py-0.5 rounded-lg transition-colors">
                           <ExternalLink className="h-2.5 w-2.5" /> FB
                         </a>
