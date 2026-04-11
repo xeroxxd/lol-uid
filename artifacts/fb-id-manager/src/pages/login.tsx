@@ -88,7 +88,7 @@ export default function Login() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#040810]">
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
         <motion.div
           animate={{ scale: [1, 1.1, 1], opacity: [0.6, 1, 0.6] }}
           transition={{ repeat: Infinity, duration: 1.8 }}
@@ -111,17 +111,17 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#040810] flex items-center justify-center relative overflow-hidden p-4">
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center relative overflow-hidden p-4">
 
       {/* Deep background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#040810] via-[#060d1f] to-[#040810]" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0a0a0a]" />
 
       {/* Ambient orbs */}
       <motion.div
         className="absolute rounded-full pointer-events-none"
         style={{
           width: 600, height: 600,
-          background: "radial-gradient(circle, rgba(6,182,212,0.07) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(34,211,238,0.05) 0%, transparent 70%)",
           top: "-15%", left: "-15%",
         }}
         animate={{ scale: [1, 1.15, 1], x: [0, 40, 0], y: [0, 25, 0] }}
@@ -187,8 +187,8 @@ export default function Login() {
         <div
           className="relative rounded-3xl overflow-hidden"
           style={{
-            background: "linear-gradient(145deg, rgba(12,18,40,0.95) 0%, rgba(8,12,28,0.98) 100%)",
-            border: "1px solid rgba(6,182,212,0.12)",
+            background: "linear-gradient(145deg, rgba(14,14,14,0.96) 0%, rgba(10,10,10,0.99) 100%)",
+            border: "1px solid rgba(34,211,238,0.1)",
             boxShadow: "0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(6,182,212,0.05), inset 0 1px 0 rgba(255,255,255,0.04)",
             backdropFilter: "blur(24px)",
           }}
@@ -202,7 +202,7 @@ export default function Login() {
           {/* Inner glow */}
           <div
             className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 pointer-events-none"
-            style={{ background: "radial-gradient(ellipse, rgba(6,182,212,0.06) 0%, transparent 70%)" }}
+            style={{ background: "radial-gradient(ellipse, rgba(34,211,238,0.04) 0%, transparent 70%)" }}
           />
 
           <div className="px-8 pt-10 pb-9">
@@ -220,7 +220,7 @@ export default function Login() {
                 {/* Outer glow ring */}
                 <motion.div
                   className="absolute inset-0 rounded-2xl"
-                  style={{ boxShadow: "0 0 40px rgba(6,182,212,0.25)" }}
+                  style={{ boxShadow: "0 0 40px rgba(34,211,238,0.2)" }}
                   animate={{ opacity: [0.4, 0.8, 0.4] }}
                   transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
                 />
@@ -229,7 +229,7 @@ export default function Login() {
                   className="relative p-5 rounded-2xl"
                   style={{
                     background: "linear-gradient(135deg, rgba(6,182,212,0.15), rgba(99,102,241,0.12))",
-                    border: "1px solid rgba(6,182,212,0.25)",
+                    border: "1px solid rgba(34,211,238,0.2)",
                     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.07)",
                   }}
                 >
@@ -299,17 +299,17 @@ export default function Login() {
                   <motion.div
                     animate={{
                       boxShadow: focused
-                        ? "0 0 0 2px rgba(6,182,212,0.35), 0 0 24px rgba(6,182,212,0.12)"
+                        ? "0 0 0 2px rgba(6,182,212,0.35), 0 0 24px rgba(34,211,238,0.1)"
                         : error
                         ? "0 0 0 2px rgba(239,68,68,0.35)"
-                        : "0 0 0 1px rgba(30,45,80,0.8)",
+                        : "0 0 0 1px rgba(30,30,30,0.8)",
                     }}
                     transition={{ duration: 0.25 }}
                     className="rounded-xl overflow-hidden"
                   >
                     <div
                       className="relative flex items-center"
-                      style={{ background: "rgba(8,14,32,0.8)" }}
+                      style={{ background: "rgba(10,10,10,0.85)" }}
                     >
                       <div className="pl-4 pr-2 text-slate-600">
                         <Lock className="h-4 w-4" />
@@ -408,7 +408,7 @@ export default function Login() {
                 <div key={label} className="flex flex-col items-center gap-1.5">
                   <div
                     className="p-2 rounded-xl"
-                    style={{ background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.1)" }}
+                    style={{ background: "rgba(34,211,238,0.04)", border: "1px solid rgba(6,182,212,0.1)" }}
                   >
                     <Icon className="h-3.5 w-3.5 text-cyan-600" />
                   </div>
