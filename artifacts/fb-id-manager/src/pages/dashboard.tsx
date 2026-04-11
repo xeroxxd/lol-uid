@@ -527,7 +527,19 @@ export default function Dashboard() {
 
   const updateMutation = useUpdateFacebookId({
     mutation: {
-      onSuccess: () => {
+      onMutate: async (variables) => {
+        await queryClient.cancelQueries({ queryKey: getListFacebookIdsQueryKey() });
+        const prev = queryClient.getQueryData(getListFacebookIdsQueryKey());
+        queryClient.setQueryData(getListFacebookIdsQueryKey(), (old: any) => {
+          if (!old?.items) return old;
+          return { ...old, items: old.items.map((it: any) => it.id === variables.id ? { ...it, ...variables.data, ...(variables.data.visited !== undefined ? { visitedAt: variables.data.visited ? new Date().toISOString() : null } : {}) } : it) };
+        });
+        return { prev };
+      },
+      onError: (_err: any, _vars: any, ctx: any) => {
+        if (ctx?.prev) queryClient.setQueryData(getListFacebookIdsQueryKey(), ctx.prev);
+      },
+      onSettled: () => {
         queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDailyStatsQueryKey() });
