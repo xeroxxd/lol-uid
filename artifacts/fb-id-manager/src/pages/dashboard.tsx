@@ -186,8 +186,8 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
   const copyText = (t: string) => navigator.clipboard.writeText(t);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0a] text-white">
-      <div className="flex items-center gap-2 px-4 py-3 bg-[#111111] border-b border-[#222222] sticky top-0">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#09090b] text-white">
+      <div className="flex items-center gap-2 px-4 py-3 bg-[#18181b] border-b border-[#27272a] sticky top-0">
         <Zap className="h-4 w-4 text-green-400 shrink-0" />
         <span className="font-bold text-sm flex-1">Bulk Live Validator</span>
         {status === "running" && (
@@ -203,12 +203,12 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {status === "idle" && (
           <>
-            <div className="bg-[#111111] rounded-2xl border border-[#222222] p-4">
+            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs (one per line)</div>
               <textarea value={inputText} onChange={(e) => setInputText(e.target.value)}
                 placeholder={"100044388870940\njohnsmith\n100012345678..."}
                 rows={10}
-                className="w-full bg-[#0a0a0a] border border-[#222222] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500/50 resize-none" />
+                className="w-full bg-[#09090b] border border-[#27272a] text-blue-300 placeholder-slate-700 text-xs font-mono rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/50 resize-none" />
               <div className="text-[10px] text-slate-600 mt-2">{uidCount} UIDs · max 5,000</div>
             </div>
             <button onClick={startValidation} disabled={uidCount === 0}
@@ -223,15 +223,15 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
 
         {status === "running" && (
           <>
-            <div className="bg-[#111111] rounded-2xl border border-[#222222] p-4">
+            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
               <div className="flex items-center justify-between text-[11px] mb-2">
                 <span className="text-slate-400 flex items-center gap-1.5">
                   {progress}/{total}
                   {isRateLimited && <span className="text-yellow-400 animate-pulse ml-1">⏳ Rate limited…</span>}
                 </span>
-                <span className="text-cyan-400 font-bold">{pct}%</span>
+                <span className="text-blue-400 font-bold">{pct}%</span>
               </div>
-              <div className="h-2 bg-[#222222] rounded-full overflow-hidden">
+              <div className="h-2 bg-[#27272a] rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#22c55e,#06b6d4)" }} />
               </div>
               <div className="flex gap-4 mt-3 text-[11px]">
@@ -248,7 +248,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
                     <div className="flex-1 min-w-0">
                       <div className="text-green-200 text-xs font-semibold truncate">{entry.name ?? entry.uid}</div>
                       <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
-                        {entry.username && <span className="text-cyan-400/80">@{entry.username}</span>}
+                        {entry.username && <span className="text-blue-400/80">@{entry.username}</span>}
                         {entry.followerCount && <span className="text-emerald-400">{entry.followerCount}</span>}
                       </div>
                     </div>
@@ -268,7 +268,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
 
         {(status === "done" || status === "aborted") && (
           <>
-            <div className="bg-[#111111] rounded-2xl border border-[#222222] p-4">
+            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
               <div className="text-sm font-bold text-white mb-1">
                 {status === "done" ? "Validation Complete" : "Stopped"}
               </div>
@@ -283,7 +283,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
                   className={`flex-1 py-2 rounded-xl text-[11px] font-bold transition-colors border
                     ${activeTab === tab
                       ? tab === "live" ? "bg-green-600/30 border-green-500/50 text-green-200" : "bg-red-600/30 border-red-500/50 text-red-200"
-                      : "border-[#222222] text-slate-500 hover:text-white"}`}>
+                      : "border-[#27272a] text-slate-500 hover:text-white"}`}>
                   {tab === "live" ? `✅ Live (${liveResults.length})` : `💀 Dead (${deadResults.length})`}
                 </button>
               ))}
@@ -293,7 +293,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
               <>
                 <div className="flex gap-1.5">
                   <button onClick={() => copyText(liveResults.map((r) => r.uid).join("\n"))}
-                    className="flex-1 flex items-center justify-center gap-1 text-[11px] bg-[#111111] border border-[#222222] text-slate-300 hover:text-white px-3 py-2 rounded-xl transition-colors">
+                    className="flex-1 flex items-center justify-center gap-1 text-[11px] bg-[#18181b] border border-[#27272a] text-slate-300 hover:text-white px-3 py-2 rounded-xl transition-colors">
                     <Copy className="h-3 w-3" /> Copy UIDs
                   </button>
                   <button onClick={() => onImportLive(liveResults.map((r) => r.uid))}
@@ -303,7 +303,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
                 </div>
                 <div className="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto">
                   {liveResults.map((r) => (
-                    <div key={r.uid} className="flex items-center gap-2.5 rounded-xl px-3 py-2 bg-[#111111] border border-[#222222]">
+                    <div key={r.uid} className="flex items-center gap-2.5 rounded-xl px-3 py-2 bg-[#18181b] border border-[#27272a]">
                       <ValidatorAvatar uid={r.uid} name={r.name} photoUrl={r.photoUrl} />
                       <div className="flex-1 min-w-0">
                         {r.name && <div className="text-white text-xs font-semibold truncate">{r.name}</div>}
@@ -318,7 +318,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
             {activeTab === "dead" && deadResults.length > 0 && (
               <>
                 <button onClick={() => copyText(deadResults.join("\n"))}
-                  className="flex items-center justify-center gap-1.5 text-[11px] bg-[#111111] border border-[#222222] text-slate-300 hover:text-white px-3 py-2 rounded-xl transition-colors">
+                  className="flex items-center justify-center gap-1.5 text-[11px] bg-[#18181b] border border-[#27272a] text-slate-300 hover:text-white px-3 py-2 rounded-xl transition-colors">
                   <Copy className="h-3 w-3" /> Copy Dead UIDs ({deadResults.length})
                 </button>
                 <div className="flex flex-col gap-1 max-h-[50vh] overflow-y-auto">
@@ -330,7 +330,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
             )}
 
             <button onClick={() => { setStatus("idle"); setInputText(""); setLiveResults([]); setDeadResults([]); setFeed([]); }}
-              className="w-full py-2.5 border border-[#222222] text-slate-400 hover:text-white text-[11px] font-bold rounded-xl transition-colors">
+              className="w-full py-2.5 border border-[#27272a] text-slate-400 hover:text-white text-[11px] font-bold rounded-xl transition-colors">
               New Validation
             </button>
           </>
@@ -791,7 +791,7 @@ export default function Dashboard() {
     if (!query.trim()) return <>{text}</>;
     const idx = text.toLowerCase().indexOf(query.toLowerCase());
     if (idx === -1) return <>{text}</>;
-    return <>{text.slice(0, idx)}<mark className="bg-cyan-500/30 text-cyan-200 rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>{text.slice(idx + query.length)}</>;
+    return <>{text.slice(0, idx)}<mark className="bg-blue-500/30 text-blue-200 rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>{text.slice(idx + query.length)}</>;
   }
 
   const formatText = (uid: string, password: string | null, accessToken?: string | null): string => {
@@ -882,7 +882,7 @@ export default function Dashboard() {
   if (authLoading || !isAuthenticated) return null;
 
   return (
-    <div id="fb-root" ref={topRef} data-theme={theme} className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+    <div id="fb-root" ref={topRef} data-theme={theme} className="min-h-screen bg-[#09090b] text-white flex flex-col">
 
       {/* Validator fullscreen */}
       {showValidator && (
@@ -896,9 +896,9 @@ export default function Dashboard() {
 
       {/* Undo toast */}
       {undoItem && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#111111] border border-[#222222] rounded-2xl px-4 py-2.5 shadow-2xl">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#18181b] border border-[#27272a] rounded-2xl px-4 py-2.5 shadow-2xl">
           <span className="text-xs text-slate-400">Deleted</span>
-          <button onClick={handleUndo} className="flex items-center gap-1.5 text-xs text-cyan-400 font-bold hover:text-cyan-300">
+          <button onClick={handleUndo} className="flex items-center gap-1.5 text-xs text-blue-400 font-bold hover:text-blue-300">
             <Undo2 className="h-3.5 w-3.5" /> Undo
           </button>
         </div>
@@ -906,14 +906,14 @@ export default function Dashboard() {
 
       {/* Import modal */}
       {showImport && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0a]">
-          <div className="flex items-center gap-2 px-4 py-3 bg-[#111111] border-b border-[#222222]">
-            <Plus className="h-4 w-4 text-cyan-400 shrink-0" />
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#09090b]">
+          <div className="flex items-center gap-2 px-4 py-3 bg-[#18181b] border-b border-[#27272a]">
+            <Plus className="h-4 w-4 text-blue-400 shrink-0" />
             <span className="font-bold text-sm flex-1">Import IDs</span>
             <button onClick={() => setShowImport(false)} className="p-1.5 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex-1 flex flex-col gap-3 px-4 py-4">
-            <div className="bg-[#111111] rounded-2xl border border-[#222222] p-4">
+            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs</div>
               <textarea
                 value={importText}
@@ -921,7 +921,7 @@ export default function Dashboard() {
                 autoFocus
                 placeholder={"100044388870940\n100044388870940|password\nusername"}
                 rows={14}
-                className="w-full bg-[#0a0a0a] border border-[#222222] text-cyan-300 placeholder-slate-700 text-xs font-mono rounded-xl px-3 py-2.5 outline-none focus:border-cyan-500/50 resize-none"
+                className="w-full bg-[#09090b] border border-[#27272a] text-blue-300 placeholder-slate-700 text-xs font-mono rounded-xl px-3 py-2.5 outline-none focus:border-blue-500/50 resize-none"
               />
               <div className="text-[10px] text-slate-600 mt-2">
                 {importText.split("\n").filter((l) => l.trim()).length} lines · format: UID or UID|password
@@ -930,7 +930,7 @@ export default function Dashboard() {
             <button
               onClick={() => importMutation.mutate({ data: { rawText: importText } })}
               disabled={!importText.trim() || importMutation.isPending}
-              className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2">
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2">
               {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Import
             </button>
@@ -939,8 +939,8 @@ export default function Dashboard() {
       )}
 
       {/* ─── HEADER ─────────────────────────────────── */}
-      <header className="fb-header bg-[#0d0d0d] border-b border-[#222222] px-4 py-2.5 flex items-center gap-2 sticky top-0 z-30">
-        <Zap className="h-4 w-4 text-cyan-400 shrink-0" />
+      <header className="fb-header bg-[#18181b] border-b border-[#27272a] px-4 py-2.5 flex items-center gap-2 sticky top-0 z-30">
+        <Zap className="h-4 w-4 text-blue-400 shrink-0" />
         <span className="font-bold text-sm text-white flex-1">FB UIDs</span>
 
         {streak > 0 && (
@@ -954,7 +954,7 @@ export default function Dashboard() {
           </span>
         )}
         {total > 0 && (
-          <span className="text-[10px] bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 px-1.5 py-0.5 rounded-full font-bold">
+          <span className="text-[10px] bg-blue-500/15 text-blue-400 border border-blue-500/25 px-1.5 py-0.5 rounded-full font-bold">
             {checkedPct}%
           </span>
         )}
@@ -966,17 +966,17 @@ export default function Dashboard() {
             {showPasswords ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </button>
           <button onClick={() => { setShowSearch((v) => !v); setShowSort(false); setShowCopyFmt(false); setShowSettings(false); }}
-            className={`p-1.5 rounded-lg transition-colors ${showSearch ? "text-cyan-400 bg-cyan-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
+            className={`p-1.5 rounded-lg transition-colors ${showSearch ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
             title="Search [/]">
             <Search className="h-4 w-4" />
           </button>
           <button onClick={() => { setShowSort((v) => !v); setShowSearch(false); setShowCopyFmt(false); setShowSettings(false); }}
-            className={`p-1.5 rounded-lg transition-colors ${showSort ? "text-cyan-400 bg-cyan-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
+            className={`p-1.5 rounded-lg transition-colors ${showSort ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
             title="Sort">
             <SortAsc className="h-4 w-4" />
           </button>
           <button onClick={() => { setShowSettings((v) => !v); setShowSort(false); setShowSearch(false); setShowCopyFmt(false); }}
-            className={`p-1.5 rounded-lg transition-colors ${showSettings ? "text-cyan-400 bg-cyan-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
+            className={`p-1.5 rounded-lg transition-colors ${showSettings ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
             title="Settings">
             <Settings className="h-4 w-4" />
           </button>
@@ -985,7 +985,7 @@ export default function Dashboard() {
             <LogOut className="h-4 w-4" />
           </button>
           <button onClick={() => setShowImport(true)}
-            className="ml-1 flex items-center gap-1 bg-cyan-500 hover:bg-cyan-400 text-[#0a0a0a] text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors">
+            className="ml-1 flex items-center gap-1 bg-blue-500 hover:bg-blue-400 text-[#09090b] text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors">
             <Plus className="h-3.5 w-3.5" /> Add
           </button>
         </div>
@@ -993,7 +993,7 @@ export default function Dashboard() {
 
       {/* Search bar */}
       {showSearch && (
-        <div className="fb-panel bg-[#0d0d0d] border-b border-[#222222] px-4 py-2.5 flex items-center gap-2">
+        <div className="fb-panel bg-[#18181b] border-b border-[#27272a] px-4 py-2.5 flex items-center gap-2">
           <Search className="h-4 w-4 text-slate-500 shrink-0" />
           <input autoFocus value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search UIDs, names, notes…"
@@ -1006,7 +1006,7 @@ export default function Dashboard() {
 
       {/* Sort panel */}
       {showSort && (
-        <div className="fb-panel bg-[#0d0d0d] border-b border-[#222222] px-4 py-3 flex flex-wrap gap-1.5">
+        <div className="fb-panel bg-[#18181b] border-b border-[#27272a] px-4 py-3 flex flex-wrap gap-1.5">
           {([
             { key: "newest",    label: "🆕 Newest" },
             { key: "oldest",    label: "📅 Oldest" },
@@ -1020,7 +1020,7 @@ export default function Dashboard() {
           ] as { key: SortMode; label: string }[]).map(({ key, label }) => (
             <button key={key} onClick={() => { setSortMode(key); setShowSort(false); }}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors
-                ${sortMode === key ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-400 hover:text-white hover:border-slate-500"}`}>
+                ${sortMode === key ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white hover:border-slate-500"}`}>
               {label}
             </button>
           ))}
@@ -1029,7 +1029,7 @@ export default function Dashboard() {
 
       {/* Copy format panel */}
       {showCopyFmt && (
-        <div className="fb-panel bg-[#0d0d0d] border-b border-[#222222] px-4 py-2.5 flex items-center gap-2 flex-wrap">
+        <div className="fb-panel bg-[#18181b] border-b border-[#27272a] px-4 py-2.5 flex items-center gap-2 flex-wrap">
           <span className="text-[10px] text-slate-600 uppercase tracking-wider mr-1">Copy as:</span>
           {([
             { key: "both",  label: "UID|Pass" },
@@ -1040,7 +1040,7 @@ export default function Dashboard() {
           ] as { key: CopyFormat; label: string }[]).map(({ key, label }) => (
             <button key={key} onClick={() => { setCopyFormat(key); setShowCopyFmt(false); }}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors
-                ${copyFormat === key ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-400 hover:text-white"}`}>
+                ${copyFormat === key ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
               {label}
             </button>
           ))}
@@ -1049,7 +1049,7 @@ export default function Dashboard() {
 
       {/* Settings panel */}
       {showSettings && (
-        <div className="fb-panel bg-[#0d0d0d] border-b border-[#222222] px-4 py-3 space-y-3">
+        <div className="fb-panel bg-[#18181b] border-b border-[#27272a] px-4 py-3 space-y-3">
           {/* Font size */}
           <div className="flex items-center gap-3">
             <Type className="h-3.5 w-3.5 text-slate-600 shrink-0" />
@@ -1058,7 +1058,7 @@ export default function Dashboard() {
               {(["sm", "base", "lg"] as const).map((s) => (
                 <button key={s} onClick={() => { setFontSize(s); try { localStorage.setItem("fb_font_size", s); } catch {} }}
                   className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                    ${fontSize === s ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-400 hover:text-white"}`}>
+                    ${fontSize === s ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
                   {s === "sm" ? "S" : s === "base" ? "M" : "L"}
                 </button>
               ))}
@@ -1071,12 +1071,12 @@ export default function Dashboard() {
             <div className="flex gap-1.5">
               <button onClick={() => { setViewMode("list"); try { localStorage.setItem("fb_view_mode", "list"); } catch {} }}
                 className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                  ${viewMode === "list" ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-400 hover:text-white"}`}>
+                  ${viewMode === "list" ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
                 <List className="h-3 w-3" /> Full
               </button>
               <button onClick={() => { setViewMode("compact"); try { localStorage.setItem("fb_view_mode", "compact"); } catch {} }}
                 className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                  ${viewMode === "compact" ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-400 hover:text-white"}`}>
+                  ${viewMode === "compact" ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
                 <Grid3x3 className="h-3 w-3" /> Compact
               </button>
             </div>
@@ -1089,7 +1089,7 @@ export default function Dashboard() {
               {(["dark", "light"] as const).map((t) => (
                 <button key={t} onClick={() => { setTheme(t); try { localStorage.setItem("fb_theme", t); } catch {} }}
                   className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                    ${theme === t ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-400 hover:text-white"}`}>
+                    ${theme === t ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
                   {t === "dark" ? <><Moon className="h-2.5 w-2.5" /> Dark</> : <><Sun className="h-2.5 w-2.5" /> Light</>}
                 </button>
               ))}
@@ -1100,7 +1100,7 @@ export default function Dashboard() {
             <Copy className="h-3.5 w-3.5 text-slate-600 shrink-0" />
             <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Copy</span>
             <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
-              className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full border border-[#222222] text-slate-400 hover:text-white transition-colors">
+              className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full border border-[#27272a] text-slate-400 hover:text-white transition-colors">
               {copyFormat === "both" ? "UID|Pass" : copyFormat === "uid" ? "UID only" : copyFormat === "pass" ? "Pass only" : copyFormat === "named" ? "Named" : "With Token"} ›
             </button>
           </div>
@@ -1110,7 +1110,7 @@ export default function Dashboard() {
             <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Sound</span>
             <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); try { localStorage.setItem("fb_sound_enabled", String(next)); } catch {} if (next) playChime(); }}
               className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                ${soundEnabled ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-400 hover:text-white"}`}>
+                ${soundEnabled ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
               {soundEnabled ? "On" : "Off"}
             </button>
           </div>
@@ -1121,7 +1121,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-slate-500 uppercase tracking-wider">Proxies</span>
                 {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length > 0 && (
-                  <span className="text-[10px] text-cyan-400">
+                  <span className="text-[10px] text-blue-400">
                     {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length} loaded
                   </span>
                 )}
@@ -1129,7 +1129,7 @@ export default function Dashboard() {
               <textarea value={globalProxies}
                 onChange={(e) => { setGlobalProxies(e.target.value); try { localStorage.setItem("fb_proxies", e.target.value); } catch {}; }}
                 rows={3} placeholder={"http://user:pass@host:port\nsocks5://host:port"}
-                className="w-full bg-[#0a0a0a] border border-[#222222] text-slate-300 placeholder-slate-700 text-[10px] font-mono px-2 py-1.5 rounded-lg outline-none focus:border-cyan-500/50 resize-none" />
+                className="w-full bg-[#09090b] border border-[#27272a] text-slate-300 placeholder-slate-700 text-[10px] font-mono px-2 py-1.5 rounded-lg outline-none focus:border-blue-500/50 resize-none" />
             </div>
           </div>
           {/* PWA install */}
@@ -1138,7 +1138,7 @@ export default function Dashboard() {
               <Smartphone className="h-3.5 w-3.5 text-slate-600 shrink-0" />
               <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">App</span>
               <button onClick={() => { pwaPrompt.prompt(); setPwaPrompt(null); }}
-                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/15 transition-colors">
+                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border border-blue-500/40 text-blue-400 hover:bg-blue-500/15 transition-colors">
                 📲 Add to Home Screen
               </button>
             </div>
@@ -1148,12 +1148,12 @@ export default function Dashboard() {
 
       {/* Bulk actions bar */}
       {selected.size > 0 && (
-        <div className="fb-bulk-bar bg-[#131313] border-b border-cyan-500/25 px-4 py-2.5 sticky top-[45px] z-20">
+        <div className="fb-bulk-bar bg-[#1f1f23] border-b border-blue-500/25 px-4 py-2.5 sticky top-[45px] z-20">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-cyan-400 font-bold shrink-0">{selected.size} selected</span>
+            <span className="text-xs text-blue-400 font-bold shrink-0">{selected.size} selected</span>
             <div className="flex-1 flex flex-wrap gap-1.5">
               <button onClick={bulkCopy}
-                className="text-[10px] bg-cyan-700/30 hover:bg-cyan-600/40 text-cyan-300 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                className="text-[10px] bg-blue-700/30 hover:bg-blue-600/40 text-blue-300 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
                 <Copy className="h-2.5 w-2.5" /> Copy
               </button>
               <button onClick={() => bulkCheck(true)}
@@ -1178,7 +1178,7 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-3 py-3 gap-3">
 
         {/* Stats row */}
-        <div className="bg-[#111111] rounded-2xl border border-[#222222] p-4">
+        <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
           <div className="grid grid-cols-4 gap-2 mb-3">
             {[
               { label: "Total",   val: total,   color: "text-white" },
@@ -1192,7 +1192,7 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-          <div className="h-1.5 bg-[#222222] rounded-full overflow-hidden">
+          <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-all duration-700"
               style={{ width: `${checkedPct}%`, background: "linear-gradient(90deg,#6366f1,#06b6d4,#22c55e)" }} />
           </div>
@@ -1206,20 +1206,20 @@ export default function Dashboard() {
         {/* Action bar */}
         <div className="flex gap-2">
           <button onClick={handleCopyAll}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-[#111111] border border-[#222222] hover:border-cyan-500/40 text-slate-400 hover:text-white rounded-xl py-2.5 text-[11px] font-bold transition-colors">
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:border-blue-500/40 text-slate-400 hover:text-white rounded-xl py-2.5 text-[11px] font-bold transition-colors">
             <Copy className="h-3.5 w-3.5" /> Copy All
           </button>
           <button onClick={handleSaveAll}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-[#111111] border border-[#222222] hover:border-green-500/40 text-slate-400 hover:text-green-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:border-green-500/40 text-slate-400 hover:text-green-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
             <Download className="h-3.5 w-3.5" /> Save All
           </button>
           <button onClick={() => handleRefetchAll(filteredItems.slice(0, visibleCount))}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-[#111111] border border-[#222222] hover:border-purple-500/40 text-slate-400 hover:text-purple-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:border-purple-500/40 text-slate-400 hover:text-purple-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
             <RefreshCw className="h-3.5 w-3.5" /> Refetch
           </button>
           <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
-            className={`flex items-center justify-center gap-1.5 bg-[#111111] border rounded-xl py-2.5 px-3 text-[11px] font-bold transition-colors
-              ${showCopyFmt ? "border-cyan-500/50 text-cyan-400" : "border-[#222222] text-slate-500 hover:text-white hover:border-slate-500"}`}>
+            className={`flex items-center justify-center gap-1.5 bg-[#18181b] border rounded-xl py-2.5 px-3 text-[11px] font-bold transition-colors
+              ${showCopyFmt ? "border-blue-500/50 text-blue-400" : "border-[#27272a] text-slate-500 hover:text-white hover:border-slate-500"}`}>
             <Copy className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -1234,7 +1234,7 @@ export default function Dashboard() {
         <div ref={analyticsRef}>
           <button
             onClick={() => { const next = !showCharts; setShowCharts(next); try { localStorage.setItem("fb_show_charts", String(next)); } catch {}; }}
-            className="flex items-center justify-between w-full bg-[#111111] border border-[#222222] hover:border-slate-600 rounded-xl px-4 py-2.5 text-xs text-slate-500 hover:text-white transition-colors">
+            className="flex items-center justify-between w-full bg-[#18181b] border border-[#27272a] hover:border-slate-600 rounded-xl px-4 py-2.5 text-xs text-slate-500 hover:text-white transition-colors">
             <span className="flex items-center gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> Analytics</span>
             {showCharts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
@@ -1243,7 +1243,7 @@ export default function Dashboard() {
             const chartDays = chartPeriod === "30d" ? extendedDays : (dailyData?.days ?? []);
             const barSize = chartPeriod === "30d" ? 6 : 16;
             return (
-              <div className="bg-[#111111] rounded-2xl border border-[#222222] p-4 space-y-4 mt-2">
+              <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4 space-y-4 mt-2">
                 {/* Status donut */}
                 <div>
                   <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-2">Status Breakdown</div>
@@ -1258,7 +1258,7 @@ export default function Dashboard() {
                         <Cell fill="#334155" />
                         <Cell fill="#22c55e" />
                       </Pie>
-                      <Tooltip contentStyle={{ background: "#111111", border: "1px solid #222222", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
+                      <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
                       <Legend iconType="circle" iconSize={7} formatter={(v) => <span style={{ fontSize: 10, color: "#64748b" }}>{v}</span>} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -1270,7 +1270,7 @@ export default function Dashboard() {
                   const lsColors: Record<string, string> = {
                     live: "#22c55e", dead: "#ef4444", checkpoint: "#f59e0b",
                     "2fa": "#3b82f6", locked: "#f97316", disabled: "#64748b",
-                    wrongpass: "#ec4899", unchecked: "#222222",
+                    wrongpass: "#ec4899", unchecked: "#27272a",
                   };
                   const lsCounts = allItems.reduce<Record<string, number>>((acc, i) => {
                     const k = i.loginStatus ?? "unchecked";
@@ -1291,7 +1291,7 @@ export default function Dashboard() {
                             <Pie data={lsData} cx="50%" cy="50%" innerRadius={28} outerRadius={52} paddingAngle={3} dataKey="value">
                               {lsData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                             </Pie>
-                            <Tooltip contentStyle={{ background: "#111111", border: "1px solid #222222", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
+                            <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
                           </PieChart>
                         </ResponsiveContainer>
                         <div className="flex flex-col gap-1 flex-1">
@@ -1316,7 +1316,7 @@ export default function Dashboard() {
                       {(["7d", "30d"] as const).map((p) => (
                         <button key={p} onClick={() => setChartPeriod(p)}
                           className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors
-                            ${chartPeriod === p ? "bg-cyan-500 border-cyan-500 text-[#0a0a0a] font-bold" : "border-[#222222] text-slate-500 hover:text-white"}`}>
+                            ${chartPeriod === p ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-500 hover:text-white"}`}>
                           {p}
                         </button>
                       ))}
@@ -1328,7 +1328,7 @@ export default function Dashboard() {
                         tickFormatter={(d: string) => { const dt = new Date(d + "T00:00:00"); return `${dt.getMonth() + 1}/${dt.getDate()}`; }}
                         tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false}
                         interval={chartPeriod === "30d" ? 4 : 0} />
-                      <Tooltip contentStyle={{ background: "#111111", border: "1px solid #222222", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }}
+                      <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }}
                         labelFormatter={(d: string) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }} />
                       <Bar dataKey="count" name="Checks" fill="#06b6d4" radius={[3, 3, 0, 0]} />
                     </BarChart>
@@ -1340,7 +1340,7 @@ export default function Dashboard() {
         </div>
 
         {/* Export section */}
-        <div className="bg-[#111111] rounded-2xl border border-[#222222] overflow-hidden divide-y divide-[#222222]">
+        <div className="bg-[#18181b] rounded-2xl border border-[#27272a] overflow-hidden divide-y divide-[#27272a]">
           {[
             { label: "✅ Checked", type: "checked" as const },
             { label: "⏳ Unchecked", type: "unchecked" as const },
@@ -1355,15 +1355,15 @@ export default function Dashboard() {
                 </span>
                 <div className="flex gap-1.5">
                   <button onClick={() => copy(text, `Copied ${items.length}`)}
-                    className="text-[10px] bg-[#222222] hover:bg-[#2a2a2a] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                    className="text-[10px] bg-[#27272a] hover:bg-[#3f3f46] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                     <Copy className="h-2.5 w-2.5" /> Copy
                   </button>
                   <button onClick={() => downloadFile(text, `${type}.txt`)}
-                    className="text-[10px] bg-[#222222] hover:bg-[#2a2a2a] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                    className="text-[10px] bg-[#27272a] hover:bg-[#3f3f46] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                     <Download className="h-2.5 w-2.5" /> txt
                   </button>
                   <button onClick={() => downloadJson(items, `${type}.json`)}
-                    className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-cyan-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                    className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                     <Download className="h-2.5 w-2.5" /> json
                   </button>
                 </div>
@@ -1376,7 +1376,7 @@ export default function Dashboard() {
             </span>
             <div className="flex gap-1.5">
               <button onClick={() => downloadJson(allItems, "all-facebook-ids.json")}
-                className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-cyan-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                 <Download className="h-2.5 w-2.5" /> Full JSON
               </button>
               {(() => {
@@ -1409,13 +1409,13 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-xs text-slate-600 select-none cursor-pointer shrink-0">
             <input type="checkbox" checked={filteredItems.length > 0 && selected.size === filteredItems.length}
-              onChange={toggleSelectAll} className="accent-cyan-500 h-3.5 w-3.5" />
+              onChange={toggleSelectAll} className="accent-blue-500 h-3.5 w-3.5" />
             All
           </label>
           <span className="text-xs text-slate-600 flex-1">
             {filteredItems.length} {filteredItems.length === 1 ? "entry" : "entries"}
           </span>
-          {selected.size > 0 && <span className="text-xs text-cyan-400 font-bold">{selected.size} selected</span>}
+          {selected.size > 0 && <span className="text-xs text-blue-400 font-bold">{selected.size} selected</span>}
           <button onClick={() => topRef.current?.scrollIntoView({ behavior: "smooth" })}
             className="text-[10px] text-slate-600 hover:text-white flex items-center gap-1 transition-colors">
             <ArrowUpToLine className="h-3 w-3" />
@@ -1432,7 +1432,7 @@ export default function Dashboard() {
         <div className="flex flex-col gap-2 pb-32">
           {idsLoading ? (
             <div className="flex flex-col items-center py-16 text-slate-600 gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-cyan-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
               <span className="text-xs">Loading…</span>
             </div>
           ) : filteredItems.length === 0 ? (
@@ -1442,7 +1442,7 @@ export default function Dashboard() {
                   <Search className="h-10 w-10 text-slate-700" />
                   <p className="text-sm text-slate-500">No results for "{searchQuery}"</p>
                   <button onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                    className="text-xs text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 px-4 py-1.5 rounded-full transition-colors">
+                    className="text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/25 px-4 py-1.5 rounded-full transition-colors">
                     Clear search
                   </button>
                 </>
@@ -1452,7 +1452,7 @@ export default function Dashboard() {
                   <p className="text-sm font-semibold text-slate-500">No IDs yet</p>
                   <p className="text-xs text-slate-700 text-center">Tap Add to import Facebook UIDs.</p>
                   <button onClick={() => setShowImport(true)}
-                    className="mt-1 flex items-center gap-1.5 bg-cyan-500 hover:bg-cyan-400 text-[#0a0a0a] text-xs font-bold px-4 py-2 rounded-xl transition-colors">
+                    className="mt-1 flex items-center gap-1.5 bg-blue-500 hover:bg-blue-400 text-[#09090b] text-xs font-bold px-4 py-2 rounded-xl transition-colors">
                     <Plus className="h-3.5 w-3.5" /> Add IDs
                   </button>
                 </>
@@ -1463,18 +1463,18 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {filteredItems.slice(0, visibleCount).map((item, idx) => (
                 <div key={item.id}
-                  className={`bg-[#111111] border rounded-xl p-2.5 relative flex flex-col gap-1.5 transition-colors
-                    ${selected.has(item.id) ? "border-cyan-500/50 bg-cyan-900/10" : "border-[#222222] hover:border-slate-600"}`}>
+                  className={`bg-[#18181b] border rounded-xl p-2.5 relative flex flex-col gap-1.5 transition-colors
+                    ${selected.has(item.id) ? "border-blue-500/50 bg-cyan-900/10" : "border-[#27272a] hover:border-slate-600"}`}>
                   {/* Swipe overlay */}
                   {swipedId === item.id && (
-                    <div className="absolute inset-0 bg-[#111111]/95 flex items-center justify-evenly z-10 rounded-xl">
+                    <div className="absolute inset-0 bg-[#18181b]/95 flex items-center justify-evenly z-10 rounded-xl">
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
                         className="flex flex-col items-center gap-0.5 text-green-300 active:scale-90">
                         <BookmarkCheck className="h-4 w-4" />
                         <span className="text-[9px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
                       </button>
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-0.5 text-cyan-300 active:scale-90">
+                        className="flex flex-col items-center gap-0.5 text-blue-300 active:scale-90">
                         <CheckCircle className="h-4 w-4" />
                         <span className="text-[9px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
                       </button>
@@ -1492,7 +1492,7 @@ export default function Dashboard() {
                   {/* Card header row */}
                   <div className="flex items-center gap-1">
                     <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
-                      className="accent-cyan-500 h-3 w-3 shrink-0" />
+                      className="accent-blue-500 h-3 w-3 shrink-0" />
                     <span className="text-[9px] text-slate-700 tabular-nums">{idx + 1}</span>
                     {item.pinned && <span className="text-[8px] text-green-500 ml-auto">💾</span>}
                     {(() => {
@@ -1576,8 +1576,8 @@ export default function Dashboard() {
 
               return (
                 <div key={item.id}
-                  className={`bg-[#111111] border rounded-2xl overflow-hidden transition-colors relative
-                    ${selected.has(item.id) ? "border-cyan-500/40 bg-cyan-900/10" : "border-[#222222]"}`}
+                  className={`bg-[#18181b] border rounded-2xl overflow-hidden transition-colors relative
+                    ${selected.has(item.id) ? "border-blue-500/40 bg-cyan-900/10" : "border-[#27272a]"}`}
                   onTouchStart={(e) => {
                     touchStartX.current = e.touches[0].clientX;
                     touchStartY.current = e.touches[0].clientY;
@@ -1593,14 +1593,14 @@ export default function Dashboard() {
 
                   {/* Swipe overlay */}
                   {swipedId === item.id && (
-                    <div className="absolute inset-0 bg-[#111111]/97 flex items-center justify-evenly z-10">
+                    <div className="absolute inset-0 bg-[#18181b]/97 flex items-center justify-evenly z-10">
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
                         className="flex flex-col items-center gap-1 text-green-300 active:scale-90">
                         <BookmarkCheck className="h-5 w-5" />
                         <span className="text-[9px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
                       </button>
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-1 text-cyan-300 active:scale-90">
+                        className="flex flex-col items-center gap-1 text-blue-300 active:scale-90">
                         <CheckCircle className="h-5 w-5" />
                         <span className="text-[9px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
                       </button>
@@ -1619,12 +1619,12 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2 px-3 pt-3 pb-2">
                     <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
                       onMouseDown={startLongPress.bind(null, item.id)}
-                      className="accent-cyan-500 h-3.5 w-3.5 shrink-0" />
+                      className="accent-blue-500 h-3.5 w-3.5 shrink-0" />
                     <span className="text-[9px] text-slate-700 tabular-nums shrink-0">{idx + 1}</span>
                     <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
                       onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
                       className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate transition-colors flex items-center gap-1
-                        ${item.visited ? "line-through text-slate-600" : "text-cyan-300 hover:text-cyan-100"}`}>
+                        ${item.visited ? "line-through text-slate-600" : "text-blue-300 hover:text-blue-100"}`}>
                       {highlightText(item.uid, searchQuery)}
                       <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-30" />
                     </a>
@@ -1635,7 +1635,7 @@ export default function Dashboard() {
                       return <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.badgeClass}`}>{cfg.label}</span>;
                     })()}
                     <button onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")}
-                      className="text-slate-600 hover:text-cyan-400 transition-colors shrink-0">
+                      className="text-slate-600 hover:text-blue-400 transition-colors shrink-0">
                       <Copy className="h-3.5 w-3.5" />
                     </button>
                     {item.pinned && <span className="text-[10px] text-green-500 shrink-0">💾</span>}
@@ -1654,13 +1654,13 @@ export default function Dashboard() {
 
                   {/* Profile info */}
                   {profile && (
-                    <div className="flex items-center gap-2.5 px-3 py-2 border-t border-[#222222]/50">
+                    <div className="flex items-center gap-2.5 px-3 py-2 border-t border-[#27272a]/50">
                       <ProfileAvatar profile={profile} uid={item.uid} size={32} />
                       <div className="flex-1 min-w-0">
                         {profile.name && <div className="text-xs text-white font-semibold truncate">{profile.name}</div>}
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
                           {profile.username && <span>@{profile.username}</span>}
-                          {profile.followerCount && <span className="text-cyan-500/70">· {profile.followerCount}</span>}
+                          {profile.followerCount && <span className="text-blue-500/70">· {profile.followerCount}</span>}
                           {profile.nationality && <span>· {profile.nationality}</span>}
                         </div>
                       </div>
@@ -1684,7 +1684,7 @@ export default function Dashboard() {
 
                   {/* Loading skeleton */}
                   {fetchingUids.has(item.uid) && !profile && (
-                    <div className="flex items-center gap-2 px-3 py-2 border-t border-[#222222]/50 animate-pulse">
+                    <div className="flex items-center gap-2 px-3 py-2 border-t border-[#27272a]/50 animate-pulse">
                       <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
                       <div className="flex-1 space-y-1.5">
                         <div className="h-2.5 bg-slate-800 rounded-full w-3/4" />
@@ -1695,7 +1695,7 @@ export default function Dashboard() {
 
                   {/* Failed retry */}
                   {failedUids.has(item.uid) && !profile && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 border-t border-[#222222]/50">
+                    <div className="flex items-center gap-2 px-3 py-1.5 border-t border-[#27272a]/50">
                       <span className="text-[10px] text-slate-700 flex-1">No profile found</span>
                       <button onClick={() => retryProfile(item.uid)} className="text-[9px] text-slate-600 hover:text-slate-400 transition-colors">
                         <RotateCcw className="h-3 w-3" />
@@ -1718,16 +1718,16 @@ export default function Dashboard() {
                       <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(item.id); } }}
                         autoFocus placeholder="Add a note…" rows={2}
-                        className="flex-1 bg-[#0a0a0a] border border-[#222222] text-slate-300 text-[10px] px-2 py-1.5 rounded-lg outline-none focus:border-cyan-500/50 resize-none placeholder-slate-700" />
+                        className="flex-1 bg-[#09090b] border border-[#27272a] text-slate-300 text-[10px] px-2 py-1.5 rounded-lg outline-none focus:border-blue-500/50 resize-none placeholder-slate-700" />
                       <div className="flex flex-col gap-1">
-                        <button onClick={() => saveNote(item.id)} className="text-[10px] bg-cyan-500/20 text-cyan-400 hover:text-cyan-200 px-2 py-1 rounded-lg">Save</button>
+                        <button onClick={() => saveNote(item.id)} className="text-[10px] bg-blue-500/20 text-blue-400 hover:text-blue-200 px-2 py-1 rounded-lg">Save</button>
                         <button onClick={() => setEditingNote(null)} className="text-[10px] text-slate-600 hover:text-white px-2 py-1 rounded-lg">✕</button>
                       </div>
                     </div>
                   )}
 
                   {/* Action row */}
-                  <div className="flex border-t border-[#222222]/50 divide-x divide-[#222222]/50">
+                  <div className="flex border-t border-[#27272a]/50 divide-x divide-[#27272a]/50">
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } })}
                       className={`flex-1 py-2 text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors
                         ${item.pinned ? "text-green-400 bg-green-900/15" : "text-slate-500 hover:text-green-400"}`}>

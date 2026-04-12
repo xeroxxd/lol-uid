@@ -16,6 +16,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 - **Frontend**: React + Vite + Tailwind + Framer Motion + Recharts
+- **Design**: Classic dark theme — zinc palette (zinc-950/900/800), blue accent (#3b82f6), clean minimal UI
 
 ## Application: FB UID Manager Pro v2
 
