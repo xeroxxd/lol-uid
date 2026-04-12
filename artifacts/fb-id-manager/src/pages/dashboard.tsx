@@ -468,6 +468,9 @@ export default function Dashboard() {
         setImportText(""); setShowImport(false);
         queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
+        if (r.imported > 0) {
+          setTimeout(() => setShowValidator(true), 600);
+        }
       },
       onError: (e) => toast({ description: e.data?.error ?? "Import failed", variant: "destructive" }),
     },
@@ -1204,7 +1207,11 @@ export default function Dashboard() {
         </div>
 
         {/* Action bar */}
-        <div className="flex gap-1.5">
+        <div className="flex gap-1">
+          <button onClick={() => setShowValidator(true)}
+            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-green-400 hover:text-green-300 rounded-lg py-2 text-[10px] font-medium transition-colors">
+            <Zap className="h-3 w-3" /> Validate
+          </button>
           <button onClick={handleCopyAll}
             className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
             <Copy className="h-3 w-3" /> Copy
@@ -1218,17 +1225,11 @@ export default function Dashboard() {
             <RefreshCw className="h-3 w-3" /> Refetch
           </button>
           <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
-            className={`flex items-center justify-center bg-[#18181b] border rounded-lg py-2 px-2.5 text-[10px] font-medium transition-colors
+            className={`flex items-center justify-center bg-[#18181b] border rounded-lg py-2 px-2 text-[10px] font-medium transition-colors
               ${showCopyFmt ? "border-blue-500/50 text-blue-400" : "border-[#27272a] text-zinc-500 hover:text-white"}`}>
             <Copy className="h-3 w-3" />
           </button>
         </div>
-
-        {/* Validate button */}
-        <button onClick={() => setShowValidator(true)}
-          className="w-full flex items-center justify-center gap-1.5 bg-[#18181b] border border-green-800/40 hover:bg-green-900/20 text-green-400 rounded-lg py-2 text-[10px] font-medium transition-colors">
-          <Zap className="h-3 w-3" /> Validate — Live/Dead Check
-        </button>
 
         {/* Analytics */}
         <div ref={analyticsRef}>
