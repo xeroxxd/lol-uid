@@ -203,7 +203,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
         {status === "idle" && (
           <>
-            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
+            <div className="bg-[#18181b] rounded-lg border border-[#27272a] p-4">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs (one per line)</div>
               <textarea value={inputText} onChange={(e) => setInputText(e.target.value)}
                 placeholder={"100044388870940\njohnsmith\n100012345678..."}
@@ -212,7 +212,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
               <div className="text-[10px] text-slate-600 mt-2">{uidCount} UIDs · max 5,000</div>
             </div>
             <button onClick={startValidation} disabled={uidCount === 0}
-              className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2">
+              className="w-full py-3.5 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-sm transition-all flex items-center justify-center gap-2">
               <Zap className="h-4 w-4" /> Start Validation ({uidCount})
             </button>
             <p className="text-[10px] text-slate-600 text-center px-4 pb-4">
@@ -223,7 +223,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
 
         {status === "running" && (
           <>
-            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
+            <div className="bg-[#18181b] rounded-lg border border-[#27272a] p-4">
               <div className="flex items-center justify-between text-[11px] mb-2">
                 <span className="text-slate-400 flex items-center gap-1.5">
                   {progress}/{total}
@@ -268,7 +268,7 @@ function ValidatorPanel({ onClose, onImportLive, soundEnabled, onPlayChime }: {
 
         {(status === "done" || status === "aborted") && (
           <>
-            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
+            <div className="bg-[#18181b] rounded-lg border border-[#27272a] p-4">
               <div className="text-sm font-bold text-white mb-1">
                 {status === "done" ? "Validation Complete" : "Stopped"}
               </div>
@@ -896,7 +896,7 @@ export default function Dashboard() {
 
       {/* Undo toast */}
       {undoItem && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#18181b] border border-[#27272a] rounded-2xl px-4 py-2.5 shadow-2xl">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#18181b] border border-[#27272a] rounded-lg px-4 py-2.5 shadow-2xl">
           <span className="text-xs text-slate-400">Deleted</span>
           <button onClick={handleUndo} className="flex items-center gap-1.5 text-xs text-blue-400 font-bold hover:text-blue-300">
             <Undo2 className="h-3.5 w-3.5" /> Undo
@@ -913,7 +913,7 @@ export default function Dashboard() {
             <button onClick={() => setShowImport(false)} className="p-1.5 text-slate-400 hover:text-white"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex-1 flex flex-col gap-3 px-4 py-4">
-            <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
+            <div className="bg-[#18181b] rounded-lg border border-[#27272a] p-4">
               <div className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Paste UIDs</div>
               <textarea
                 value={importText}
@@ -930,7 +930,7 @@ export default function Dashboard() {
             <button
               onClick={() => importMutation.mutate({ data: { rawText: importText } })}
               disabled={!importText.trim() || importMutation.isPending}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl text-sm transition-all flex items-center justify-center gap-2">
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-sm transition-all flex items-center justify-center gap-2">
               {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Import
             </button>
@@ -1178,72 +1178,72 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-3 py-3 gap-3">
 
         {/* Stats row */}
-        <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4">
-          <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="bg-[#18181b] rounded-lg border border-[#27272a] px-3 py-2.5">
+          <div className="grid grid-cols-4 gap-1 mb-2">
             {[
-              { label: "Total",   val: total,   color: "text-white" },
+              { label: "Total",   val: total,   color: "text-zinc-200" },
               { label: "Checked", val: checked, color: "text-purple-400" },
               { label: "Saved",   val: saved,   color: "text-green-400" },
               { label: "Left",    val: left,    color: "text-red-400" },
             ].map(({ label, val, color }) => (
               <div key={label} className="text-center">
-                <div className="text-[9px] text-slate-600 uppercase tracking-widest mb-0.5">{label}</div>
-                <div className={`text-xl font-bold tabular-nums ${color}`}>{val}</div>
+                <div className="text-[8px] text-zinc-500 uppercase tracking-wider">{label}</div>
+                <div className={`text-base font-semibold tabular-nums ${color}`}>{val}</div>
               </div>
             ))}
           </div>
-          <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${checkedPct}%`, background: "linear-gradient(90deg,#6366f1,#06b6d4,#22c55e)" }} />
+          <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-blue-500 transition-all duration-700"
+              style={{ width: `${checkedPct}%` }} />
           </div>
           {fetchingUids.size > 0 && (
-            <div className="flex items-center gap-1.5 mt-2 text-[10px] text-cyan-600/70">
-              <Loader2 className="h-2.5 w-2.5 animate-spin" /> {fetchingUids.size} profiles loading…
+            <div className="flex items-center gap-1 mt-1.5 text-[9px] text-zinc-500">
+              <Loader2 className="h-2.5 w-2.5 animate-spin" /> {fetchingUids.size} loading…
             </div>
           )}
         </div>
 
         {/* Action bar */}
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <button onClick={handleCopyAll}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:border-blue-500/40 text-slate-400 hover:text-white rounded-xl py-2.5 text-[11px] font-bold transition-colors">
-            <Copy className="h-3.5 w-3.5" /> Copy All
+            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
+            <Copy className="h-3 w-3" /> Copy
           </button>
           <button onClick={handleSaveAll}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:border-green-500/40 text-slate-400 hover:text-green-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
-            <Download className="h-3.5 w-3.5" /> Save All
+            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
+            <Download className="h-3 w-3" /> Save
           </button>
           <button onClick={() => handleRefetchAll(filteredItems.slice(0, visibleCount))}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:border-purple-500/40 text-slate-400 hover:text-purple-300 rounded-xl py-2.5 text-[11px] font-bold transition-colors">
-            <RefreshCw className="h-3.5 w-3.5" /> Refetch
+            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
+            <RefreshCw className="h-3 w-3" /> Refetch
           </button>
           <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
-            className={`flex items-center justify-center gap-1.5 bg-[#18181b] border rounded-xl py-2.5 px-3 text-[11px] font-bold transition-colors
-              ${showCopyFmt ? "border-blue-500/50 text-blue-400" : "border-[#27272a] text-slate-500 hover:text-white hover:border-slate-500"}`}>
-            <Copy className="h-3.5 w-3.5" />
+            className={`flex items-center justify-center bg-[#18181b] border rounded-lg py-2 px-2.5 text-[10px] font-medium transition-colors
+              ${showCopyFmt ? "border-blue-500/50 text-blue-400" : "border-[#27272a] text-zinc-500 hover:text-white"}`}>
+            <Copy className="h-3 w-3" />
           </button>
         </div>
 
         {/* Validate button */}
         <button onClick={() => setShowValidator(true)}
-          className="w-full flex items-center justify-center gap-2 bg-green-900/20 border border-green-500/25 hover:border-green-400/50 hover:bg-green-900/30 text-green-400 hover:text-green-200 rounded-xl py-2.5 text-[11px] font-bold transition-all">
-          <Zap className="h-3.5 w-3.5" /> Bulk Validate — Live / Dead Check
+          className="w-full flex items-center justify-center gap-1.5 bg-[#18181b] border border-green-800/40 hover:bg-green-900/20 text-green-400 rounded-lg py-2 text-[10px] font-medium transition-colors">
+          <Zap className="h-3 w-3" /> Validate — Live/Dead Check
         </button>
 
         {/* Analytics */}
         <div ref={analyticsRef}>
           <button
             onClick={() => { const next = !showCharts; setShowCharts(next); try { localStorage.setItem("fb_show_charts", String(next)); } catch {}; }}
-            className="flex items-center justify-between w-full bg-[#18181b] border border-[#27272a] hover:border-slate-600 rounded-xl px-4 py-2.5 text-xs text-slate-500 hover:text-white transition-colors">
-            <span className="flex items-center gap-1.5"><BarChart2 className="h-3.5 w-3.5" /> Analytics</span>
-            {showCharts ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            className="flex items-center justify-between w-full bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] rounded-lg px-3 py-2 text-[10px] text-zinc-500 hover:text-white transition-colors">
+            <span className="flex items-center gap-1.5"><BarChart2 className="h-3 w-3" /> Analytics</span>
+            {showCharts ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
 
           {showCharts && (() => {
             const chartDays = chartPeriod === "30d" ? extendedDays : (dailyData?.days ?? []);
             const barSize = chartPeriod === "30d" ? 6 : 16;
             return (
-              <div className="bg-[#18181b] rounded-2xl border border-[#27272a] p-4 space-y-4 mt-2">
+              <div className="bg-[#18181b] rounded-lg border border-[#27272a] p-3 space-y-3 mt-1.5">
                 {/* Status donut */}
                 <div>
                   <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-2">Status Breakdown</div>
@@ -1340,7 +1340,7 @@ export default function Dashboard() {
         </div>
 
         {/* Export section */}
-        <div className="bg-[#18181b] rounded-2xl border border-[#27272a] overflow-hidden divide-y divide-[#27272a]">
+        <div className="bg-[#18181b] rounded-lg border border-[#27272a] overflow-hidden divide-y divide-[#27272a]">
           {[
             { label: "✅ Checked", type: "checked" as const },
             { label: "⏳ Unchecked", type: "unchecked" as const },
@@ -1363,7 +1363,7 @@ export default function Dashboard() {
                     <Download className="h-2.5 w-2.5" /> txt
                   </button>
                   <button onClick={() => downloadJson(items, `${type}.json`)}
-                    className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                    className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                     <Download className="h-2.5 w-2.5" /> json
                   </button>
                 </div>
@@ -1376,7 +1376,7 @@ export default function Dashboard() {
             </span>
             <div className="flex gap-1.5">
               <button onClick={() => downloadJson(allItems, "all-facebook-ids.json")}
-                className="text-[10px] bg-cyan-900/30 hover:bg-cyan-800/40 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+                className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
                 <Download className="h-2.5 w-2.5" /> Full JSON
               </button>
               {(() => {
@@ -1464,7 +1464,7 @@ export default function Dashboard() {
               {filteredItems.slice(0, visibleCount).map((item, idx) => (
                 <div key={item.id}
                   className={`bg-[#18181b] border rounded-xl p-2.5 relative flex flex-col gap-1.5 transition-colors
-                    ${selected.has(item.id) ? "border-blue-500/50 bg-cyan-900/10" : "border-[#27272a] hover:border-slate-600"}`}>
+                    ${selected.has(item.id) ? "border-blue-500/50 bg-blue-900/10" : "border-[#27272a] hover:border-slate-600"}`}>
                   {/* Swipe overlay */}
                   {swipedId === item.id && (
                     <div className="absolute inset-0 bg-[#18181b]/95 flex items-center justify-evenly z-10 rounded-xl">
@@ -1576,8 +1576,8 @@ export default function Dashboard() {
 
               return (
                 <div key={item.id}
-                  className={`bg-[#18181b] border rounded-2xl overflow-hidden transition-colors relative
-                    ${selected.has(item.id) ? "border-blue-500/40 bg-cyan-900/10" : "border-[#27272a]"}`}
+                  className={`bg-[#18181b] border rounded-lg overflow-hidden transition-colors relative
+                    ${selected.has(item.id) ? "border-blue-500/40 bg-blue-900/10" : "border-[#27272a]"}`}
                   onTouchStart={(e) => {
                     touchStartX.current = e.touches[0].clientX;
                     touchStartY.current = e.touches[0].clientY;
