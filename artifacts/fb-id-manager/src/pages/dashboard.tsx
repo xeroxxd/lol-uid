@@ -8,25 +8,19 @@ import {
   useDeleteFacebookId,
   useUpdateFacebookId,
   useGetFacebookIdStats,
-  useGetDailyStats,
   getListFacebookIdsQueryKey,
   getGetFacebookIdStatsQueryKey,
-  getGetDailyStatsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
   Zap, Trash2, LogOut, Plus, Search, Copy, Download,
   ArrowUpToLine, SortAsc, Loader2, X, Key,
-  FileText, CheckSquare, Square, BarChart2, ChevronDown, ChevronUp,
-  Settings, List, Grid3x3, Type, Undo2, User, ExternalLink, Sun, Moon,
+  FileText, CheckSquare, Square,
+  Undo2, ExternalLink,
   BookmarkCheck, CheckCircle, RefreshCw, RotateCcw, Eye, EyeOff,
-  Wifi, WifiOff, Bell, BellOff, Smartphone,
+  WifiOff,
 } from "lucide-react";
-import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
-  ResponsiveContainer, Legend,
-} from "recharts";
 
 type SortMode = "newest" | "oldest" | "checked" | "unchecked" | "saved" | "alpha" | "recent" | "name" | "followers";
 type CopyFormat = "both" | "uid" | "pass" | "named" | "token";
@@ -389,24 +383,10 @@ export default function Dashboard() {
   const [showCopyFmt, setShowCopyFmt] = useState(false);
   const [editingNote, setEditingNote] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
-  const [showCharts, setShowCharts] = useState(() => {
-    try { return localStorage.getItem("fb_show_charts") === "true"; } catch { return false; }
-  });
-  const [chartPeriod, setChartPeriod] = useState<"7d" | "30d">("7d");
-  const [extendedDays, setExtendedDays] = useState<{ date: string; count: number }[]>([]);
-  const [showSettings, setShowSettings] = useState(false);
-  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">(() => {
-    try { return (localStorage.getItem("fb_font_size") as "sm" | "base" | "lg") ?? "sm"; } catch { return "sm"; }
-  });
-  const [viewMode, setViewMode] = useState<"list" | "compact">(() => {
-    try { return (localStorage.getItem("fb_view_mode") as "list" | "compact") ?? "list"; } catch { return "list"; }
-  });
   const [visibleCount, setVisibleCount] = useState(50);
   const [undoItem, setUndoItem] = useState<{ id: number; uid: string; password: string | null; pinned: boolean; visited: boolean; note: string | null; tag: string | null } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    try { return (localStorage.getItem("fb_theme") as "dark" | "light") ?? "dark"; } catch { return "dark"; }
-  });
+  const theme = "dark" as const;
   const [visitCounts, setVisitCounts] = useState<Map<string, number>>(() => {
     try {
       const keys = Object.keys(localStorage).filter((k) => k.startsWith("fb_visit_"));
@@ -416,25 +396,7 @@ export default function Dashboard() {
     } catch { return new Map(); }
   });
   const [showValidator, setShowValidator] = useState(false);
-  const [globalProxies, setGlobalProxies] = useState<string>(() => {
-    try { return localStorage.getItem("fb_proxies") ?? ""; } catch { return ""; }
-  });
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-    try { return localStorage.getItem("fb_sound_enabled") !== "false"; } catch { return true; }
-  });
-  const [pwaPrompt, setPwaPrompt] = useState<{ prompt: () => void } | null>(null);
-  const [streak, setStreak] = useState<number>(() => {
-    try {
-      const lastActive = localStorage.getItem("fb_last_active");
-      const savedStreak = parseInt(localStorage.getItem("fb_streak_count") ?? "0", 10) || 0;
-      if (!lastActive) return 0;
-      const today = new Date().toDateString();
-      const yesterday = new Date(Date.now() - 86400000).toDateString();
-      if (lastActive === today || lastActive === yesterday) return savedStreak;
-    } catch {}
-    return 0;
-  });
-  const [checkedToday, setCheckedToday] = useState(0);
+  const soundEnabled = true;
   const [fetchingUids, setFetchingUids] = useState<Set<string>>(new Set());
   const [showPasswords, setShowPasswords] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
@@ -449,16 +411,12 @@ export default function Dashboard() {
   profileDataRef.current = profileData;
   const fetchedUids = useRef<Set<string>>(new Set());
   const [failedUids, setFailedUids] = useState<Set<string>>(new Set());
-  const analyticsRef = useRef<HTMLDivElement>(null);
 
   const { data: idsData, isLoading: idsLoading } = useListFacebookIds({
     query: { queryKey: getListFacebookIdsQueryKey() },
   });
   const { data: statsData } = useGetFacebookIdStats({
     query: { queryKey: getGetFacebookIdStatsQueryKey() },
-  });
-  const { data: dailyData } = useGetDailyStats({
-    query: { queryKey: getGetDailyStatsQueryKey() },
   });
 
   const importMutation = useBulkImportFacebookIds({
@@ -545,7 +503,6 @@ export default function Dashboard() {
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: getListFacebookIdsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetFacebookIdStatsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetDailyStatsQueryKey() });
       },
     },
   });
@@ -615,11 +572,11 @@ export default function Dashboard() {
       if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setShowSearch((v) => !v);
-        setShowSort(false); setShowCopyFmt(false); setShowSettings(false);
+        setShowSort(false); setShowCopyFmt(false);
       }
       if (e.key === "Escape") {
         setShowSearch(false); setShowSort(false); setShowCopyFmt(false);
-        setShowSettings(false); setSwipedId(null);
+        setSwipedId(null);
         setSelected(new Set()); setEditingNote(null);
       }
     };
@@ -661,45 +618,6 @@ export default function Dashboard() {
     toast({ description: "🔄 Re-fetching profiles…" });
   }, [fetchProfile, toast]);
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      const promptEvent = e as unknown as { prompt: () => void };
-      setPwaPrompt(promptEvent);
-      try {
-        if (!localStorage.getItem("fb_pwa_prompted")) {
-          localStorage.setItem("fb_pwa_prompted", "1");
-          setTimeout(() => { promptEvent.prompt(); setPwaPrompt(null); }, 3000);
-        }
-      } catch {}
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  useEffect(() => {
-    const items = idsData?.items ?? [];
-    if (!items.length) return;
-    const today = new Date().toDateString();
-    const todayCount = items.filter((i) => i.visitedAt && new Date(i.visitedAt).toDateString() === today).length;
-    setCheckedToday(todayCount);
-    const dateSets = new Set(items.filter((i) => i.visitedAt).map((i) => new Date(i.visitedAt!).toDateString()));
-    let s = 0; const d = new Date();
-    while (dateSets.has(d.toDateString())) { s++; d.setDate(d.getDate() - 1); }
-    setStreak(s);
-    try {
-      localStorage.setItem("fb_last_active", today);
-      if (s > 0) localStorage.setItem("fb_streak_count", String(s));
-    } catch {}
-  }, [idsData]);
-
-  useEffect(() => {
-    if (!showCharts || chartPeriod !== "30d") return;
-    fetch("/api/facebook-ids/daily-stats?days=30", { credentials: "include" })
-      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-      .then((d) => setExtendedDays(d.days ?? []))
-      .catch(() => {});
-  }, [showCharts, chartPeriod, idsData]);
 
   const allItems = idsData?.items ?? [];
 
@@ -824,24 +742,6 @@ export default function Dashboard() {
     document.body.removeChild(a); URL.revokeObjectURL(url);
   };
 
-  const downloadCsv = (items: typeof allItems, filename: string) => {
-    const rows = items.map((i) => `${i.uid},${i.password ?? ""},${i.note ?? ""}`);
-    downloadFile(["uid,password,note", ...rows].join("\n"), filename);
-  };
-
-  const downloadJson = (items: typeof allItems, filename: string) => {
-    const data = items.map((i) => ({
-      uid: i.uid, password: i.password ?? null, note: i.note ?? null,
-      saved: i.pinned, checked: i.visited, profile: profileData.get(i.uid) ?? null,
-    }));
-    downloadFile(JSON.stringify(data, null, 2), filename);
-  };
-
-  const getBulk = (type: "checked" | "unchecked" | "saved") => {
-    if (type === "checked") return allItems.filter((i) => i.visited);
-    if (type === "unchecked") return allItems.filter((i) => !i.visited);
-    return allItems.filter((i) => i.pinned);
-  };
 
   const toggleSelect = (id: number) => setSelected((prev) => {
     const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
@@ -879,6 +779,7 @@ export default function Dashboard() {
     toast({ description: `💾 Saved ${targets.length} IDs` });
   };
 
+  const fontSize = "sm" as const;
   const fontClass = (fs: "sm" | "base" | "lg") =>
     fs === "sm" ? "text-[11px]" : fs === "lg" ? "text-sm" : "text-xs";
 
@@ -943,48 +844,23 @@ export default function Dashboard() {
 
       {/* ─── HEADER ─────────────────────────────────── */}
       <header className="fb-header bg-[#18181b] border-b border-[#27272a] px-4 py-2.5 flex items-center gap-2 sticky top-0 z-30">
-        <Zap className="h-4 w-4 text-blue-400 shrink-0" />
         <span className="font-bold text-sm text-white flex-1">FB UIDs</span>
-
-        {streak > 0 && (
-          <span className="text-[10px] bg-orange-500/15 text-orange-400 border border-orange-500/25 px-1.5 py-0.5 rounded-full font-bold">
-            🔥{streak}d
-          </span>
-        )}
-        {checkedToday > 0 && (
-          <span className="text-[10px] bg-purple-500/15 text-purple-400 border border-purple-500/25 px-1.5 py-0.5 rounded-full font-bold">
-            +{checkedToday}
-          </span>
-        )}
-        {total > 0 && (
-          <span className="text-[10px] bg-blue-500/15 text-blue-400 border border-blue-500/25 px-1.5 py-0.5 rounded-full font-bold">
-            {checkedPct}%
-          </span>
-        )}
 
         <div className="flex items-center gap-0.5">
           <button onClick={() => setShowPasswords((v) => !v)}
-            className={`p-1.5 rounded-lg transition-colors ${showPasswords ? "text-yellow-400 bg-yellow-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
-            title="Toggle passwords">
+            className={`p-1.5 rounded-lg transition-colors ${showPasswords ? "text-yellow-400 bg-yellow-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}>
             {showPasswords ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </button>
-          <button onClick={() => { setShowSearch((v) => !v); setShowSort(false); setShowCopyFmt(false); setShowSettings(false); }}
-            className={`p-1.5 rounded-lg transition-colors ${showSearch ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
-            title="Search [/]">
+          <button onClick={() => { setShowSearch((v) => !v); setShowSort(false); setShowCopyFmt(false); }}
+            className={`p-1.5 rounded-lg transition-colors ${showSearch ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}>
             <Search className="h-4 w-4" />
           </button>
-          <button onClick={() => { setShowSort((v) => !v); setShowSearch(false); setShowCopyFmt(false); setShowSettings(false); }}
-            className={`p-1.5 rounded-lg transition-colors ${showSort ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
-            title="Sort">
+          <button onClick={() => { setShowSort((v) => !v); setShowSearch(false); setShowCopyFmt(false); }}
+            className={`p-1.5 rounded-lg transition-colors ${showSort ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}>
             <SortAsc className="h-4 w-4" />
           </button>
-          <button onClick={() => { setShowSettings((v) => !v); setShowSort(false); setShowSearch(false); setShowCopyFmt(false); }}
-            className={`p-1.5 rounded-lg transition-colors ${showSettings ? "text-blue-400 bg-blue-400/10" : "text-slate-500 hover:text-white hover:bg-white/5"}`}
-            title="Settings">
-            <Settings className="h-4 w-4" />
-          </button>
           <button onClick={logout}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors" title="Logout">
+            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors">
             <LogOut className="h-4 w-4" />
           </button>
           <button onClick={() => setShowImport(true)}
@@ -1050,104 +926,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Settings panel */}
-      {showSettings && (
-        <div className="fb-panel bg-[#18181b] border-b border-[#27272a] px-4 py-3 space-y-3">
-          {/* Font size */}
-          <div className="flex items-center gap-3">
-            <Type className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Font</span>
-            <div className="flex gap-1.5">
-              {(["sm", "base", "lg"] as const).map((s) => (
-                <button key={s} onClick={() => { setFontSize(s); try { localStorage.setItem("fb_font_size", s); } catch {} }}
-                  className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                    ${fontSize === s ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
-                  {s === "sm" ? "S" : s === "base" ? "M" : "L"}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* View mode */}
-          <div className="flex items-center gap-3">
-            <List className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">View</span>
-            <div className="flex gap-1.5">
-              <button onClick={() => { setViewMode("list"); try { localStorage.setItem("fb_view_mode", "list"); } catch {} }}
-                className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                  ${viewMode === "list" ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
-                <List className="h-3 w-3" /> Full
-              </button>
-              <button onClick={() => { setViewMode("compact"); try { localStorage.setItem("fb_view_mode", "compact"); } catch {} }}
-                className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                  ${viewMode === "compact" ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
-                <Grid3x3 className="h-3 w-3" /> Compact
-              </button>
-            </div>
-          </div>
-          {/* Theme */}
-          <div className="flex items-center gap-3">
-            {theme === "dark" ? <Moon className="h-3.5 w-3.5 text-slate-600 shrink-0" /> : <Sun className="h-3.5 w-3.5 text-yellow-400 shrink-0" />}
-            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Theme</span>
-            <div className="flex gap-1.5">
-              {(["dark", "light"] as const).map((t) => (
-                <button key={t} onClick={() => { setTheme(t); try { localStorage.setItem("fb_theme", t); } catch {} }}
-                  className={`flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                    ${theme === t ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
-                  {t === "dark" ? <><Moon className="h-2.5 w-2.5" /> Dark</> : <><Sun className="h-2.5 w-2.5" /> Light</>}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* Copy format shortcut */}
-          <div className="flex items-center gap-3">
-            <Copy className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Copy</span>
-            <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
-              className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-full border border-[#27272a] text-slate-400 hover:text-white transition-colors">
-              {copyFormat === "both" ? "UID|Pass" : copyFormat === "uid" ? "UID only" : copyFormat === "pass" ? "Pass only" : copyFormat === "named" ? "Named" : "With Token"} ›
-            </button>
-          </div>
-          {/* Sound */}
-          <div className="flex items-center gap-3">
-            {soundEnabled ? <Bell className="h-3.5 w-3.5 text-slate-600 shrink-0" /> : <BellOff className="h-3.5 w-3.5 text-slate-700 shrink-0" />}
-            <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">Sound</span>
-            <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); try { localStorage.setItem("fb_sound_enabled", String(next)); } catch {} if (next) playChime(); }}
-              className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors
-                ${soundEnabled ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-400 hover:text-white"}`}>
-              {soundEnabled ? "On" : "Off"}
-            </button>
-          </div>
-          {/* Proxies */}
-          <div className="flex items-start gap-3">
-            <Wifi className="h-3.5 w-3.5 text-slate-600 shrink-0 mt-1" />
-            <div className="flex-1 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-500 uppercase tracking-wider">Proxies</span>
-                {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length > 0 && (
-                  <span className="text-[10px] text-blue-400">
-                    {globalProxies.split("\n").filter((l) => l.trim().startsWith("http") || l.trim().startsWith("socks")).length} loaded
-                  </span>
-                )}
-              </div>
-              <textarea value={globalProxies}
-                onChange={(e) => { setGlobalProxies(e.target.value); try { localStorage.setItem("fb_proxies", e.target.value); } catch {}; }}
-                rows={3} placeholder={"http://user:pass@host:port\nsocks5://host:port"}
-                className="w-full bg-[#09090b] border border-[#27272a] text-slate-300 placeholder-slate-700 text-[10px] font-mono px-2 py-1.5 rounded-lg outline-none focus:border-blue-500/50 resize-none" />
-            </div>
-          </div>
-          {/* PWA install */}
-          {pwaPrompt && (
-            <div className="flex items-center gap-3">
-              <Smartphone className="h-3.5 w-3.5 text-slate-600 shrink-0" />
-              <span className="text-[11px] text-slate-500 uppercase tracking-wider w-16">App</span>
-              <button onClick={() => { pwaPrompt.prompt(); setPwaPrompt(null); }}
-                className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border border-blue-500/40 text-blue-400 hover:bg-blue-500/15 transition-colors">
-                📲 Add to Home Screen
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Bulk actions bar */}
       {selected.size > 0 && (
@@ -1224,174 +1002,8 @@ export default function Dashboard() {
             className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
             <RefreshCw className="h-3 w-3" /> Refetch
           </button>
-          <button onClick={() => { setShowCopyFmt((v) => !v); setShowSettings(false); }}
-            className={`flex items-center justify-center bg-[#18181b] border rounded-lg py-2 px-2 text-[10px] font-medium transition-colors
-              ${showCopyFmt ? "border-blue-500/50 text-blue-400" : "border-[#27272a] text-zinc-500 hover:text-white"}`}>
-            <Copy className="h-3 w-3" />
-          </button>
         </div>
 
-        {/* Analytics */}
-        <div ref={analyticsRef}>
-          <button
-            onClick={() => { const next = !showCharts; setShowCharts(next); try { localStorage.setItem("fb_show_charts", String(next)); } catch {}; }}
-            className="flex items-center justify-between w-full bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] rounded-lg px-3 py-2 text-[10px] text-zinc-500 hover:text-white transition-colors">
-            <span className="flex items-center gap-1.5"><BarChart2 className="h-3 w-3" /> Analytics</span>
-            {showCharts ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </button>
-
-          {showCharts && (() => {
-            const chartDays = chartPeriod === "30d" ? extendedDays : (dailyData?.days ?? []);
-            const barSize = chartPeriod === "30d" ? 6 : 16;
-            return (
-              <div className="bg-[#18181b] rounded-lg border border-[#27272a] p-3 space-y-3 mt-1.5">
-                {/* Status donut */}
-                <div>
-                  <div className="text-[10px] text-slate-600 uppercase tracking-wider mb-2">Status Breakdown</div>
-                  <ResponsiveContainer width="100%" height={150}>
-                    <PieChart>
-                      <Pie data={[
-                        { name: "Checked", value: checked || 0 },
-                        { name: "Unchecked", value: left || 0 },
-                        { name: "Saved", value: saved || 0 },
-                      ]} cx="50%" cy="50%" innerRadius={38} outerRadius={65} paddingAngle={3} dataKey="value">
-                        <Cell fill="#a855f7" />
-                        <Cell fill="#334155" />
-                        <Cell fill="#22c55e" />
-                      </Pie>
-                      <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 10, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
-                      <Legend iconType="circle" iconSize={7} formatter={(v) => <span style={{ fontSize: 10, color: "#64748b" }}>{v}</span>} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Login status */}
-                {(() => {
-                  if (allItems.length === 0) return null;
-                  const lsColors: Record<string, string> = {
-                    live: "#22c55e", dead: "#ef4444", checkpoint: "#f59e0b",
-                    "2fa": "#3b82f6", locked: "#f97316", disabled: "#64748b",
-                    wrongpass: "#ec4899", unchecked: "#27272a",
-                  };
-                  const lsCounts = allItems.reduce<Record<string, number>>((acc, i) => {
-                    const k = i.loginStatus ?? "unchecked";
-                    acc[k] = (acc[k] ?? 0) + 1; return acc;
-                  }, {});
-                  const lsData = Object.entries(lsCounts).filter(([, v]) => v > 0)
-                    .map(([k, v]) => ({ name: k === "unchecked" ? "Not Checked" : k.toUpperCase(), value: v, fill: lsColors[k] ?? "#8b5cf6" }));
-                  const lastChecked = allItems.map((i) => i.lastChecked).filter(Boolean).sort().at(-1);
-                  return (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-[10px] text-slate-600 uppercase tracking-wider">Login Status</div>
-                        {lastChecked && <span className="text-[9px] text-slate-700">last {timeAgo(lastChecked)}</span>}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <ResponsiveContainer width="50%" height={110}>
-                          <PieChart>
-                            <Pie data={lsData} cx="50%" cy="50%" innerRadius={28} outerRadius={52} paddingAngle={3} dataKey="value">
-                              {lsData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                            </Pie>
-                            <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="flex flex-col gap-1 flex-1">
-                          {lsData.map((d) => (
-                            <div key={d.name} className="flex items-center gap-1.5 text-[10px]">
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.fill }} />
-                              <span className="text-slate-500 flex-1 truncate">{d.name}</span>
-                              <span className="font-bold text-slate-300">{d.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Activity bar chart */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] text-slate-600 uppercase tracking-wider">Check Activity</div>
-                    <div className="flex gap-1">
-                      {(["7d", "30d"] as const).map((p) => (
-                        <button key={p} onClick={() => setChartPeriod(p)}
-                          className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors
-                            ${chartPeriod === p ? "bg-blue-500 border-blue-500 text-[#09090b] font-bold" : "border-[#27272a] text-slate-500 hover:text-white"}`}>
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <ResponsiveContainer width="100%" height={110}>
-                    <BarChart data={chartDays} barSize={barSize}>
-                      <XAxis dataKey="date"
-                        tickFormatter={(d: string) => { const dt = new Date(d + "T00:00:00"); return `${dt.getMonth() + 1}/${dt.getDate()}`; }}
-                        tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false}
-                        interval={chartPeriod === "30d" ? 4 : 0} />
-                      <Tooltip contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 11 }} itemStyle={{ color: "#e2e8f0" }}
-                        labelFormatter={(d: string) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }} />
-                      <Bar dataKey="count" name="Checks" fill="#06b6d4" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Export section */}
-        <div className="bg-[#18181b] rounded-lg border border-[#27272a] overflow-hidden divide-y divide-[#27272a]">
-          {[
-            { label: "✅ Checked", type: "checked" as const },
-            { label: "⏳ Unchecked", type: "unchecked" as const },
-            { label: "💾 Saved", type: "saved" as const },
-          ].map(({ label, type }) => {
-            const items = getBulk(type);
-            const text = items.map((i) => formatText(i.uid, i.password, i.accessToken)).join("\n");
-            return (
-              <div key={type} className="flex items-center px-4 py-2.5 gap-2">
-                <span className="text-xs text-slate-300 flex-1 font-medium">{label}
-                  <span className="ml-1.5 text-[10px] text-slate-600">({items.length})</span>
-                </span>
-                <div className="flex gap-1.5">
-                  <button onClick={() => copy(text, `Copied ${items.length}`)}
-                    className="text-[10px] bg-[#27272a] hover:bg-[#3f3f46] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
-                    <Copy className="h-2.5 w-2.5" /> Copy
-                  </button>
-                  <button onClick={() => downloadFile(text, `${type}.txt`)}
-                    className="text-[10px] bg-[#27272a] hover:bg-[#3f3f46] text-slate-300 hover:text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
-                    <Download className="h-2.5 w-2.5" /> txt
-                  </button>
-                  <button onClick={() => downloadJson(items, `${type}.json`)}
-                    className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
-                    <Download className="h-2.5 w-2.5" /> json
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          <div className="flex items-center px-4 py-2.5 gap-2">
-            <span className="text-xs text-slate-300 flex-1 font-medium">🌐 All + Profiles
-              <span className="ml-1.5 text-[10px] text-slate-600">({allItems.length})</span>
-            </span>
-            <div className="flex gap-1.5">
-              <button onClick={() => downloadJson(allItems, "all-facebook-ids.json")}
-                className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-blue-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
-                <Download className="h-2.5 w-2.5" /> Full JSON
-              </button>
-              {(() => {
-                const igs = allItems.filter(i => profileData.get(i.uid)?.instagramUsername).map(i => profileData.get(i.uid)!.instagramUsername);
-                return igs.length > 0 ? (
-                  <button onClick={() => copy(igs.join("\n"), `${igs.length} IG usernames copied!`)}
-                    className="text-[10px] bg-pink-900/30 hover:bg-pink-800/40 text-pink-300 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
-                    <Copy className="h-2.5 w-2.5" /> IGs ({igs.length})
-                  </button>
-                ) : null;
-              })()}
-            </div>
-          </div>
-        </div>
 
         {/* Retry failed banner */}
         {failedUids.size > 0 && (
@@ -1459,109 +1071,7 @@ export default function Dashboard() {
                 </>
               )}
             </div>
-          ) : viewMode === "compact" ? (
-            /* ─── COMPACT VIEW ─── */
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {filteredItems.slice(0, visibleCount).map((item, idx) => (
-                <div key={item.id}
-                  className={`bg-[#18181b] border rounded-xl p-2.5 relative flex flex-col gap-1.5 transition-colors
-                    ${selected.has(item.id) ? "border-blue-500/50 bg-blue-900/10" : "border-[#27272a] hover:border-slate-600"}`}>
-                  {/* Swipe overlay */}
-                  {swipedId === item.id && (
-                    <div className="absolute inset-0 bg-[#18181b]/95 flex items-center justify-evenly z-10 rounded-xl">
-                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-0.5 text-green-300 active:scale-90">
-                        <BookmarkCheck className="h-4 w-4" />
-                        <span className="text-[9px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
-                      </button>
-                      <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-0.5 text-blue-300 active:scale-90">
-                        <CheckCircle className="h-4 w-4" />
-                        <span className="text-[9px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
-                      </button>
-                      <button onClick={() => { deleteWithUndo(item); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-0.5 text-red-300 active:scale-90">
-                        <Trash2 className="h-4 w-4" />
-                        <span className="text-[9px] font-bold">Delete</span>
-                      </button>
-                      <button onClick={() => setSwipedId(null)} className="absolute top-1 right-1 text-slate-500">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Card header row */}
-                  <div className="flex items-center gap-1">
-                    <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
-                      className="accent-blue-500 h-3 w-3 shrink-0" />
-                    <span className="text-[9px] text-slate-700 tabular-nums">{idx + 1}</span>
-                    {item.pinned && <span className="text-[8px] text-green-500 ml-auto">💾</span>}
-                    {(() => {
-                      const ls = item.loginStatus as LoginStatus | null | undefined;
-                      if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
-                      return <div className={`w-1.5 h-1.5 rounded-full ${LOGIN_STATUS_CONFIG[ls].dotClass} shrink-0 ml-auto`} title={LOGIN_STATUS_CONFIG[ls].label} />;
-                    })()}
-                  </div>
-
-                  {/* UID copy button */}
-                  <button
-                    onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")}
-                    onTouchStart={(e) => {
-                      touchStartX.current = e.touches[0].clientX;
-                      touchStartY.current = e.touches[0].clientY;
-                      longPressFired.current = false;
-                      longPressTimer.current = setTimeout(() => { longPressFired.current = true; if (navigator.vibrate) navigator.vibrate(40); toggleSelect(item.id); }, 500);
-                    }}
-                    onTouchEnd={(e) => {
-                      if (longPressTimer.current) clearTimeout(longPressTimer.current);
-                      const dx = Math.abs(e.changedTouches[0].clientX - touchStartX.current);
-                      const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
-                      if (!longPressFired.current && dx < 5 && dy < 5) {
-                        copy(formatText(item.uid, item.password, item.accessToken), "Copied!");
-                      }
-                    }}
-                    className={`font-mono block truncate text-left w-full active:opacity-60 transition-opacity ${fontClass(fontSize)}
-                      ${item.visited ? "line-through text-slate-600" : "text-slate-200"}`}>
-                    {highlightText(item.uid, searchQuery)}
-                  </button>
-
-                  {item.password && (
-                    <div className="flex items-center gap-0.5">
-                      <Key className="h-2 w-2 text-yellow-500/70 shrink-0" />
-                      <span className="text-[9px] font-mono text-yellow-500/60 truncate">{showPasswords ? item.password : "••••••"}</span>
-                    </div>
-                  )}
-
-                  {/* Quick actions */}
-                  <div className="flex gap-1 mt-0.5 flex-wrap items-center">
-                    <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                      onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
-                      className="text-[9px] bg-blue-900/30 text-blue-400 hover:text-blue-200 px-1.5 py-0.5 rounded-lg transition-colors">🔗</a>
-                    {(visitCounts.get(item.uid) ?? 0) > 0 && (
-                      <span className="text-[8px] bg-violet-700/30 text-violet-300 px-1 py-0.5 rounded font-bold">
-                        {visitCounts.get(item.uid)}×
-                      </span>
-                    )}
-                    <button onClick={() => updateMutation.mutate({ id: item.id, data: { visited: !item.visited } })}
-                      className={`text-[9px] px-1.5 py-0.5 rounded-lg transition-colors ${item.visited ? "bg-emerald-700/40 text-emerald-300" : "bg-slate-700/30 text-slate-500 hover:text-slate-300"}`}>
-                      {item.visited ? "✅" : "○"}
-                    </button>
-                    <button onClick={() => updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } })}
-                      className={`text-[9px] px-1.5 py-0.5 rounded-lg transition-colors ${item.pinned ? "bg-green-700/40 text-green-300" : "bg-slate-700/30 text-slate-500 hover:text-slate-300"}`}>
-                      💾
-                    </button>
-                    <button onClick={() => deleteWithUndo(item)}
-                      className="text-[9px] bg-red-900/30 text-red-500 hover:text-red-300 px-1.5 py-0.5 rounded-lg transition-colors">✕</button>
-                  </div>
-
-                  {timeAgo(item.createdAt) && (
-                    <div className="text-[8px] text-slate-700">{timeAgo(item.createdAt)}</div>
-                  )}
-                </div>
-              ))}
-            </div>
           ) : (
-            /* ─── LIST VIEW ─── */
             filteredItems.slice(0, visibleCount).map((item, idx) => {
               const profile = profileData.get(item.uid);
               const visitCount = visitCounts.get(item.uid) ?? 0;
