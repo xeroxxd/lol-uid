@@ -779,10 +779,6 @@ export default function Dashboard() {
     toast({ description: `💾 Saved ${targets.length} IDs` });
   };
 
-  const fontSize = "sm" as const;
-  const fontClass = (fs: "sm" | "base" | "lg") =>
-    fs === "sm" ? "text-[11px]" : fs === "lg" ? "text-sm" : "text-xs";
-
   if (authLoading || !isAuthenticated) return null;
 
   return (
@@ -843,8 +839,8 @@ export default function Dashboard() {
       )}
 
       {/* ─── HEADER ─────────────────────────────────── */}
-      <header className="fb-header bg-[#18181b] border-b border-[#27272a] px-4 py-2.5 flex items-center gap-2 sticky top-0 z-30">
-        <span className="font-bold text-sm text-white flex-1">FB UIDs</span>
+      <header className="fb-header bg-[#18181b] border-b border-[#27272a] px-4 py-3 flex items-center gap-2 sticky top-0 z-30">
+        <span className="font-bold text-base text-white flex-1 tracking-tight">FB UIDs</span>
 
         <div className="flex items-center gap-0.5">
           <button onClick={() => setShowPasswords((v) => !v)}
@@ -956,51 +952,51 @@ export default function Dashboard() {
       )}
 
       {/* ─── MAIN CONTENT ───────────────────────────── */}
-      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-3 py-3 gap-3">
+      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full px-4 py-4 gap-4">
 
         {/* Stats row */}
-        <div className="bg-[#18181b] rounded-lg border border-[#27272a] px-3 py-2.5">
-          <div className="grid grid-cols-4 gap-1 mb-2">
+        <div className="bg-[#18181b] rounded-lg border border-[#27272a] px-4 py-3.5">
+          <div className="grid grid-cols-4 gap-2 mb-3">
             {[
-              { label: "Total",   val: total,   color: "text-zinc-200" },
+              { label: "Total",   val: total,   color: "text-zinc-100" },
               { label: "Checked", val: checked, color: "text-purple-400" },
               { label: "Saved",   val: saved,   color: "text-green-400" },
               { label: "Left",    val: left,    color: "text-red-400" },
             ].map(({ label, val, color }) => (
               <div key={label} className="text-center">
-                <div className="text-[8px] text-zinc-500 uppercase tracking-wider">{label}</div>
-                <div className={`text-base font-semibold tabular-nums ${color}`}>{val}</div>
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">{label}</div>
+                <div className={`text-xl font-bold tabular-nums ${color}`}>{val}</div>
               </div>
             ))}
           </div>
-          <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
+          <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
             <div className="h-full rounded-full bg-blue-500 transition-all duration-700"
               style={{ width: `${checkedPct}%` }} />
           </div>
           {fetchingUids.size > 0 && (
-            <div className="flex items-center gap-1 mt-1.5 text-[9px] text-zinc-500">
-              <Loader2 className="h-2.5 w-2.5 animate-spin" /> {fetchingUids.size} loading…
+            <div className="flex items-center gap-1.5 mt-2 text-[11px] text-zinc-500">
+              <Loader2 className="h-3 w-3 animate-spin" /> {fetchingUids.size} loading…
             </div>
           )}
         </div>
 
         {/* Action bar */}
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           <button onClick={() => setShowValidator(true)}
-            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-green-400 hover:text-green-300 rounded-lg py-2 text-[10px] font-medium transition-colors">
-            <Zap className="h-3 w-3" /> Validate
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-green-400 hover:text-green-300 rounded-lg py-2.5 text-xs font-medium transition-colors">
+            <Zap className="h-3.5 w-3.5" /> Validate
           </button>
           <button onClick={handleCopyAll}
-            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
-            <Copy className="h-3 w-3" /> Copy
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2.5 text-xs font-medium transition-colors">
+            <Copy className="h-3.5 w-3.5" /> Copy
           </button>
           <button onClick={handleSaveAll}
-            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
-            <Download className="h-3 w-3" /> Save
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2.5 text-xs font-medium transition-colors">
+            <Download className="h-3.5 w-3.5" /> Save
           </button>
           <button onClick={() => handleRefetchAll(filteredItems.slice(0, visibleCount))}
-            className="flex-1 flex items-center justify-center gap-1 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2 text-[10px] font-medium transition-colors">
-            <RefreshCw className="h-3 w-3" /> Refetch
+            className="flex-1 flex items-center justify-center gap-1.5 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-zinc-400 hover:text-white rounded-lg py-2.5 text-xs font-medium transition-colors">
+            <RefreshCw className="h-3.5 w-3.5" /> Refetch
           </button>
         </div>
 
@@ -1019,54 +1015,54 @@ export default function Dashboard() {
         )}
 
         {/* List controls row */}
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-slate-600 select-none cursor-pointer shrink-0">
+        <div className="flex items-center gap-2.5">
+          <label className="flex items-center gap-2 text-xs text-zinc-500 select-none cursor-pointer shrink-0">
             <input type="checkbox" checked={filteredItems.length > 0 && selected.size === filteredItems.length}
-              onChange={toggleSelectAll} className="accent-blue-500 h-3.5 w-3.5" />
+              onChange={toggleSelectAll} className="accent-blue-500 h-4 w-4" />
             All
           </label>
-          <span className="text-xs text-slate-600 flex-1">
+          <span className="text-xs text-zinc-500 flex-1">
             {filteredItems.length} {filteredItems.length === 1 ? "entry" : "entries"}
           </span>
           {selected.size > 0 && <span className="text-xs text-blue-400 font-bold">{selected.size} selected</span>}
           <button onClick={() => topRef.current?.scrollIntoView({ behavior: "smooth" })}
-            className="text-[10px] text-slate-600 hover:text-white flex items-center gap-1 transition-colors">
-            <ArrowUpToLine className="h-3 w-3" />
+            className="text-xs text-zinc-600 hover:text-white flex items-center gap-1 transition-colors">
+            <ArrowUpToLine className="h-3.5 w-3.5" />
           </button>
           {allItems.length > 0 && (
             <button onClick={() => { if (confirm("Delete ALL data?")) clearAllMutation.mutate(); }}
-              className="text-[10px] text-red-600 hover:text-red-400 flex items-center gap-1 transition-colors">
-              <Trash2 className="h-3 w-3" /> Wipe
+              className="text-xs text-red-600 hover:text-red-400 flex items-center gap-1 transition-colors">
+              <Trash2 className="h-3.5 w-3.5" /> Wipe
             </button>
           )}
         </div>
 
         {/* ─── ID LIST ─────────────────────────────── */}
-        <div className="flex flex-col gap-2 pb-32">
+        <div className="flex flex-col gap-3 pb-32">
           {idsLoading ? (
-            <div className="flex flex-col items-center py-16 text-slate-600 gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-              <span className="text-xs">Loading…</span>
+            <div className="flex flex-col items-center py-20 text-zinc-600 gap-3">
+              <Loader2 className="h-7 w-7 animate-spin text-blue-500" />
+              <span className="text-sm">Loading…</span>
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center py-20 gap-3">
+            <div className="flex flex-col items-center py-24 gap-4">
               {searchQuery ? (
                 <>
-                  <Search className="h-10 w-10 text-slate-700" />
-                  <p className="text-sm text-slate-500">No results for "{searchQuery}"</p>
+                  <Search className="h-12 w-12 text-zinc-700" />
+                  <p className="text-base text-zinc-500">No results for "{searchQuery}"</p>
                   <button onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                    className="text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/25 px-4 py-1.5 rounded-full transition-colors">
+                    className="text-sm text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/25 px-5 py-2 rounded-lg transition-colors">
                     Clear search
                   </button>
                 </>
               ) : (
                 <>
-                  <Zap className="h-12 w-12 text-slate-700" />
-                  <p className="text-sm font-semibold text-slate-500">No IDs yet</p>
-                  <p className="text-xs text-slate-700 text-center">Tap Add to import Facebook UIDs.</p>
+                  <Zap className="h-14 w-14 text-zinc-700" />
+                  <p className="text-base font-semibold text-zinc-400">No IDs yet</p>
+                  <p className="text-sm text-zinc-600 text-center">Tap Add to import Facebook UIDs.</p>
                   <button onClick={() => setShowImport(true)}
-                    className="mt-1 flex items-center gap-1.5 bg-blue-500 hover:bg-blue-400 text-[#09090b] text-xs font-bold px-4 py-2 rounded-xl transition-colors">
-                    <Plus className="h-3.5 w-3.5" /> Add IDs
+                    className="mt-1 flex items-center gap-2 bg-blue-500 hover:bg-blue-400 text-[#09090b] text-sm font-bold px-5 py-2.5 rounded-lg transition-colors">
+                    <Plus className="h-4 w-4" /> Add IDs
                   </button>
                 </>
               )}
@@ -1106,133 +1102,140 @@ export default function Dashboard() {
                   {swipedId === item.id && (
                     <div className="absolute inset-0 bg-[#18181b]/97 flex items-center justify-evenly z-10">
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } }); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-1 text-green-300 active:scale-90">
-                        <BookmarkCheck className="h-5 w-5" />
-                        <span className="text-[9px] font-bold">{item.pinned ? "Unsave" : "Save"}</span>
+                        className="flex flex-col items-center gap-1.5 text-green-300 active:scale-90">
+                        <BookmarkCheck className="h-6 w-6" />
+                        <span className="text-xs font-bold">{item.pinned ? "Unsave" : "Save"}</span>
                       </button>
                       <button onClick={() => { updateMutation.mutate({ id: item.id, data: { visited: !item.visited } }); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-1 text-blue-300 active:scale-90">
-                        <CheckCircle className="h-5 w-5" />
-                        <span className="text-[9px] font-bold">{item.visited ? "Uncheck" : "Check"}</span>
+                        className="flex flex-col items-center gap-1.5 text-blue-300 active:scale-90">
+                        <CheckCircle className="h-6 w-6" />
+                        <span className="text-xs font-bold">{item.visited ? "Uncheck" : "Check"}</span>
                       </button>
                       <button onClick={() => { deleteWithUndo(item); setSwipedId(null); }}
-                        className="flex flex-col items-center gap-1 text-red-300 active:scale-90">
-                        <Trash2 className="h-5 w-5" />
-                        <span className="text-[9px] font-bold">Delete</span>
+                        className="flex flex-col items-center gap-1.5 text-red-300 active:scale-90">
+                        <Trash2 className="h-6 w-6" />
+                        <span className="text-xs font-bold">Delete</span>
                       </button>
-                      <button onClick={() => setSwipedId(null)} className="absolute top-2 right-2 text-slate-500">
-                        <X className="h-4 w-4" />
+                      <button onClick={() => setSwipedId(null)} className="absolute top-3 right-3 text-zinc-500">
+                        <X className="h-5 w-5" />
                       </button>
                     </div>
                   )}
 
-                  {/* Card top: checkbox + number + UID link + status + copy */}
-                  <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                  {/* Profile + UID section */}
+                  <div className="flex items-start gap-3 px-4 pt-4 pb-3">
                     <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelect(item.id)}
                       onMouseDown={startLongPress.bind(null, item.id)}
-                      className="accent-blue-500 h-3.5 w-3.5 shrink-0" />
-                    <span className="text-[9px] text-slate-700 tabular-nums shrink-0">{idx + 1}</span>
-                    <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
-                      onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
-                      className={`font-mono ${fontClass(fontSize)} flex-1 min-w-0 truncate transition-colors flex items-center gap-1
-                        ${item.visited ? "line-through text-slate-600" : "text-blue-300 hover:text-blue-100"}`}>
-                      {highlightText(item.uid, searchQuery)}
-                      <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-30" />
-                    </a>
-                    {(() => {
-                      const ls = item.loginStatus as LoginStatus | null | undefined;
-                      if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
-                      const cfg = LOGIN_STATUS_CONFIG[ls];
-                      return <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.badgeClass}`}>{cfg.label}</span>;
-                    })()}
-                    <button onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")}
-                      className="text-slate-600 hover:text-blue-400 transition-colors shrink-0">
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    {item.pinned && <span className="text-[10px] text-green-500 shrink-0">💾</span>}
-                    {visitCount > 0 && <span className="text-[8px] bg-violet-700/30 text-violet-300 px-1 py-0.5 rounded font-bold shrink-0">{visitCount}×</span>}
-                  </div>
+                      className="accent-blue-500 h-4 w-4 shrink-0 mt-1" />
 
-                  {/* Password row */}
-                  {item.password && (
-                    <div className="flex items-center gap-1.5 px-3 pb-1.5">
-                      <Key className="h-2.5 w-2.5 text-yellow-500/60 shrink-0" />
-                      <span className="text-[10px] font-mono text-yellow-500/60 truncate flex-1">
-                        {showPasswords ? item.password : "••••••••"}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Profile info */}
-                  {profile && (
-                    <div className="flex items-center gap-2.5 px-3 py-2 border-t border-[#27272a]/50">
-                      <ProfileAvatar profile={profile} uid={item.uid} size={32} />
-                      <div className="flex-1 min-w-0">
-                        {profile.name && <div className="text-xs text-white font-semibold truncate">{profile.name}</div>}
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                          {profile.username && <span>@{profile.username}</span>}
-                          {profile.followerCount && <span className="text-blue-500/70">· {profile.followerCount}</span>}
-                          {profile.nationality && <span>· {profile.nationality}</span>}
-                        </div>
+                    {profile ? (
+                      <ProfileAvatar profile={profile} uid={item.uid} size={44} />
+                    ) : fetchingUids.has(item.uid) ? (
+                      <div className="w-11 h-11 rounded-full bg-zinc-800 shrink-0 animate-pulse" />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-zinc-800/50 shrink-0 flex items-center justify-center text-zinc-600 text-sm font-bold">
+                        {item.uid.slice(-2)}
                       </div>
-                      <div className="flex flex-col gap-1 shrink-0">
-                        {profile.instagramUsername && (
-                          <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-0.5 text-[9px] bg-pink-900/30 hover:bg-pink-800/50 text-pink-300 px-1.5 py-0.5 rounded-lg transition-colors">
-                            <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                            IG
-                          </a>
-                        )}
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      {/* Name + followers */}
+                      {profile?.name && (
+                        <div className="text-sm text-white font-semibold truncate leading-tight">{profile.name}</div>
+                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {profile?.username && <span className="text-xs text-zinc-400">@{profile.username}</span>}
+                        {profile?.followerCount && <span className="text-xs text-blue-400 font-medium">{profile.followerCount}</span>}
+                        {profile?.nationality && <span className="text-xs text-zinc-500">{profile.nationality}</span>}
+                      </div>
+
+                      {/* UID row */}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] text-zinc-600 tabular-nums shrink-0">#{idx + 1}</span>
                         <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
                           onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
-                          className="flex items-center gap-0.5 text-[9px] bg-blue-900/30 hover:bg-blue-800/50 text-blue-300 px-1.5 py-0.5 rounded-lg transition-colors">
-                          <ExternalLink className="h-2.5 w-2.5" /> FB
+                          className={`font-mono text-xs flex-1 min-w-0 truncate transition-colors
+                            ${item.visited ? "line-through text-zinc-600" : "text-blue-300 hover:text-blue-200"}`}>
+                          {highlightText(item.uid, searchQuery)}
                         </a>
+                        {(() => {
+                          const ls = item.loginStatus as LoginStatus | null | undefined;
+                          if (!ls || !LOGIN_STATUS_CONFIG[ls]) return null;
+                          const cfg = LOGIN_STATUS_CONFIG[ls];
+                          return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badgeClass}`}>{cfg.label}</span>;
+                        })()}
                       </div>
-                    </div>
-                  )}
 
-                  {/* Loading skeleton */}
-                  {fetchingUids.has(item.uid) && !profile && (
-                    <div className="flex items-center gap-2 px-3 py-2 border-t border-[#27272a]/50 animate-pulse">
-                      <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <div className="h-2.5 bg-slate-800 rounded-full w-3/4" />
-                        <div className="h-2 bg-slate-800/70 rounded-full w-1/2" />
-                      </div>
+                      {/* Password row */}
+                      {item.password && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Key className="h-3 w-3 text-yellow-500/50 shrink-0" />
+                          <span className="text-xs font-mono text-yellow-500/50 truncate">
+                            {showPasswords ? item.password : "••••••••"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right side actions */}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <button onClick={() => copy(formatText(item.uid, item.password, item.accessToken), "Copied!")}
+                        className="text-zinc-600 hover:text-blue-400 transition-colors p-1">
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      {item.pinned && <span className="text-xs text-green-500">💾</span>}
+                      {visitCount > 0 && <span className="text-[10px] bg-violet-700/30 text-violet-300 px-1.5 py-0.5 rounded font-bold">{visitCount}×</span>}
+                    </div>
+                  </div>
+
+                  {/* Social links */}
+                  {profile && (
+                    <div className="flex items-center gap-2 px-4 pb-3">
+                      <a href={`https://facebook.com/${item.uid}`} target="_blank" rel="noreferrer"
+                        onClick={() => { incrementVisit(item.uid); if (!item.visited) updateMutation.mutate({ id: item.id, data: { visited: true } }); }}
+                        className="flex items-center gap-1 text-[11px] bg-blue-900/25 hover:bg-blue-800/40 text-blue-300 px-2.5 py-1 rounded-lg transition-colors">
+                        <ExternalLink className="h-3 w-3" /> Facebook
+                      </a>
+                      {profile.instagramUsername && (
+                        <a href={`https://instagram.com/${profile.instagramUsername}`} target="_blank" rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 text-[11px] bg-pink-900/25 hover:bg-pink-800/40 text-pink-300 px-2.5 py-1 rounded-lg transition-colors">
+                          <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                          Instagram
+                        </a>
+                      )}
                     </div>
                   )}
 
                   {/* Failed retry */}
                   {failedUids.has(item.uid) && !profile && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 border-t border-[#27272a]/50">
-                      <span className="text-[10px] text-slate-700 flex-1">No profile found</span>
-                      <button onClick={() => retryProfile(item.uid)} className="text-[9px] text-slate-600 hover:text-slate-400 transition-colors">
-                        <RotateCcw className="h-3 w-3" />
+                    <div className="flex items-center gap-2 px-4 pb-3">
+                      <span className="text-xs text-zinc-600 flex-1">Profile not available</span>
+                      <button onClick={() => retryProfile(item.uid)} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1">
+                        <RotateCcw className="h-3.5 w-3.5" /> Retry
                       </button>
                     </div>
                   )}
 
                   {/* Note display */}
                   {item.note && editingNote !== item.id && (
-                    <div className="px-3 pb-2 pt-0">
-                      <div className="text-[10px] text-slate-500 bg-slate-800/30 rounded-lg px-2.5 py-1.5 truncate">
-                        📝 {item.note}
+                    <div className="px-4 pb-3">
+                      <div className="text-xs text-zinc-400 bg-zinc-800/40 rounded-lg px-3 py-2 truncate">
+                        {item.note}
                       </div>
                     </div>
                   )}
 
                   {/* Note editor */}
                   {editingNote === item.id && (
-                    <div className="px-3 pb-2 pt-1 flex gap-1.5">
+                    <div className="px-4 pb-3 flex gap-2">
                       <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNote(item.id); } }}
                         autoFocus placeholder="Add a note…" rows={2}
-                        className="flex-1 bg-[#09090b] border border-[#27272a] text-slate-300 text-[10px] px-2 py-1.5 rounded-lg outline-none focus:border-blue-500/50 resize-none placeholder-slate-700" />
-                      <div className="flex flex-col gap-1">
-                        <button onClick={() => saveNote(item.id)} className="text-[10px] bg-blue-500/20 text-blue-400 hover:text-blue-200 px-2 py-1 rounded-lg">Save</button>
-                        <button onClick={() => setEditingNote(null)} className="text-[10px] text-slate-600 hover:text-white px-2 py-1 rounded-lg">✕</button>
+                        className="flex-1 bg-[#09090b] border border-[#27272a] text-zinc-300 text-xs px-3 py-2 rounded-lg outline-none focus:border-blue-500/50 resize-none placeholder-zinc-700" />
+                      <div className="flex flex-col gap-1.5">
+                        <button onClick={() => saveNote(item.id)} className="text-xs bg-blue-500/20 text-blue-400 hover:text-blue-200 px-3 py-1.5 rounded-lg">Save</button>
+                        <button onClick={() => setEditingNote(null)} className="text-xs text-zinc-600 hover:text-white px-3 py-1.5 rounded-lg">Cancel</button>
                       </div>
                     </div>
                   )}
@@ -1240,27 +1243,27 @@ export default function Dashboard() {
                   {/* Action row */}
                   <div className="flex border-t border-[#27272a]/50 divide-x divide-[#27272a]/50">
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { pinned: !item.pinned } })}
-                      className={`flex-1 py-2 text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors
-                        ${item.pinned ? "text-green-400 bg-green-900/15" : "text-slate-500 hover:text-green-400"}`}>
-                      💾 {item.pinned ? "Saved" : "Save"}
+                      className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1 transition-colors
+                        ${item.pinned ? "text-green-400 bg-green-900/10" : "text-zinc-500 hover:text-green-400"}`}>
+                      <BookmarkCheck className="h-3.5 w-3.5" /> {item.pinned ? "Saved" : "Save"}
                     </button>
                     <button onClick={() => updateMutation.mutate({ id: item.id, data: { visited: !item.visited } })}
-                      className={`flex-1 py-2 text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors
-                        ${item.visited ? "text-emerald-400 bg-emerald-900/15" : "text-slate-500 hover:text-emerald-400"}`}>
-                      {item.visited ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+                      className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1 transition-colors
+                        ${item.visited ? "text-emerald-400 bg-emerald-900/10" : "text-zinc-500 hover:text-emerald-400"}`}>
+                      {item.visited ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
                       {item.visited ? "Done" : "Check"}
                     </button>
                     <button onClick={() => {
                       if (editingNote === item.id) { setEditingNote(null); }
                       else { setEditingNote(item.id); setNoteText(item.note ?? ""); }
                     }}
-                      className={`flex-1 py-2 text-[10px] font-medium flex items-center justify-center gap-0.5 transition-colors
-                        ${item.note ? "text-blue-400 bg-blue-900/15" : "text-slate-500 hover:text-blue-400"}`}>
-                      <FileText className="h-3 w-3" /> Note
+                      className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1 transition-colors
+                        ${item.note ? "text-blue-400 bg-blue-900/10" : "text-zinc-500 hover:text-blue-400"}`}>
+                      <FileText className="h-3.5 w-3.5" /> Note
                     </button>
                     <button onClick={() => deleteWithUndo(item)}
-                      className="flex-1 py-2 text-[10px] font-medium text-slate-500 hover:text-red-400 flex items-center justify-center transition-colors">
-                      <Trash2 className="h-3 w-3" />
+                      className="flex-1 py-2.5 text-xs font-medium text-zinc-500 hover:text-red-400 flex items-center justify-center gap-1 transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
